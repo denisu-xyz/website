@@ -398,9 +398,17 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--paper);c
 
 <script>
 // ── CONFIG & AUTH ──
-const DEFAULT_PASSWORD = 'denisu2025';
+// Password is stored as a SHA-256 hash inside data.json on GitHub.
+// This means it syncs across all your devices automatically.
+// Default hash below = 'denisu2025' — change it via Settings on first login.
+const DEFAULT_HASH = '1b0771cd5220d890a01af318c8c95b3369f2817414463419eafc88c932ad5fc8';
 let CONFIG = {};
-let DATA = { site:{title:'デニス',url:'denisu.xyz',description:'3D print · electronics · making'}, projects:[], filament:[], learning:[], sources:[] };
+let DATA = { site:{title:'デニス',url:'denisu.xyz',description:'3D print · electronics · making'}, projects:[], filament:[], learning:[], sources:[], admin_hash: DEFAULT_HASH };
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 function loadConfig() {
   const c = localStorage.getItem('denisu_config');
@@ -413,16 +421,37 @@ function saveLocalCache() {
   localStorage.setItem('denisu_data_cache', JSON.stringify(DATA));
 }
 
-function doLogin() {
+async function doLogin() {
   const pw = document.getElementById('login-pw').value;
-  const stored = localStorage.getItem('denisu_admin_pw') || DEFAULT_PASSWORD;
-  if (pw === stored) {
+  if (!pw) return;
+  loadConfig();
+  // If GitHub is configured, load data first to get the latest hash
+  if (CONFIG.token && CONFIG.user && CONFIG.repo) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${CONFIG.user}/${CONFIG.repo}/contents/data.json`, {
+        headers: { 'Authorization': `token ${CONFIG.token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        DATA = JSON.parse(atob(json.content.replace(/\n/g,'')));
+        CONFIG.sha = json.sha;
+        localStorage.setItem('denisu_config', JSON.stringify(CONFIG));
+        saveLocalCache();
+      }
+    } catch(e) { /* fall through to cached data */ }
+  }
+  const hash = await hashPassword(pw);
+  const storedHash = DATA.admin_hash || DEFAULT_HASH;
+  if (hash === storedHash) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
-    loadConfig();
-    loadFromGitHub();
     populateProjectSelects();
     renderAll();
+    if (!CONFIG.token) {
+      // No GitHub configured yet — go straight to settings
+      setView('settings', document.querySelector('.sb-item[onclick*="settings"]'));
+      showSaveStatus('error', 'Configure GitHub first');
+    }
   } else {
     document.getElementById('login-error').style.display = 'block';
     document.getElementById('login-pw').value = '';
@@ -444,8 +473,7 @@ async function loadFromGitHub() {
     });
     if (!res.ok) return;
     const json = await res.json();
-    const content = JSON.parse(atob(json.content.replace(/\n/g,'')));
-    DATA = content;
+    DATA = JSON.parse(atob(json.content.replace(/\n/g,'')));
     CONFIG.sha = json.sha;
     localStorage.setItem('denisu_config', JSON.stringify(CONFIG));
     saveLocalCache();
@@ -826,14 +854,19 @@ function saveConfig() {
   loadFromGitHub();
 }
 
-function savePassword() {
+async function savePassword() {
   const pw1 = document.getElementById('cfg-pw1').value;
   const pw2 = document.getElementById('cfg-pw2').value;
   if (!pw1) return alert('Password cannot be empty');
   if (pw1 !== pw2) return alert('Passwords do not match');
-  localStorage.setItem('denisu_admin_pw', pw1);
-  alert('Password updated');
-  document.getElementById('cfg-pw1').value=''; document.getElementById('cfg-pw2').value='';
+  // Hash the new password and store in data.json — syncs across all devices
+  DATA.admin_hash = await hashPassword(pw1);
+  const ok = await saveToGitHub();
+  if (ok) {
+    showSaveStatus('saved', '✓ Password updated across all devices');
+    document.getElementById('cfg-pw1').value='';
+    document.getElementById('cfg-pw2').value='';
+  }
 }
 
 // ── INIT ──
