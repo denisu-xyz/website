@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デニス · admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1D9E75;--g2:#0F6E56;--g3:#E8F8F2;--g4:#9FE1CB;
+  --o:#EF9F27;--o2:#BA7517;--o3:#FEF3E2;
+  --r:#E24B4A;--r2:#993C1D;--r3:#FCEBEB;
+  --h:#7C3AED;--h2:#5B21B6;--h3:#EDE9FE;
+  --ink:#111;--paper:#F9F8F6;--card:#FFF;
+  --bd:rgba(0,0,0,0.09);--muted:#888;--faint:rgba(0,0,0,0.055);
+  --dark:#1a1a18;--dark2:#2a2a28;--dark3:#3a3a38
+}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink)}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:999}
+#login-screen.hidden{display:none}
+.login-box{background:#2a2a28;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:2rem;width:320px;text-align:center}
+.login-logo{font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:32px;letter-spacing:4px;color:#fff;margin-bottom:.25rem}
+.login-logo span{color:var(--o)}
+.login-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,.3);margin-bottom:1.5rem}
+.login-input{width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.06);color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px;text-align:center}
+.login-input:focus{outline:none;border-color:var(--g)}
+.login-btn{width:100%;padding:10px;border:none;border-radius:8px;background:var(--g);color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer}
+.login-btn:hover{background:var(--g2)}
+.login-error{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--r);margin-top:8px;display:none}
+
+/* LAYOUT */
+#app{display:none;height:100%}
+#app.visible{display:flex;flex-direction:column;height:100%}
+.topbar{height:52px;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;background:var(--dark);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.t-left{display:flex;align-items:center;gap:10px}
+.logo{font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:16px;letter-spacing:2px;color:#fff}
+.logo span{color:var(--o)}
+.admin-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 9px;border-radius:4px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.4)}
+.t-right{display:flex;align-items:center;gap:8px}
+.save-indicator{font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 12px;border-radius:5px;display:none}
+.si-saving{display:flex !important;background:var(--o3);color:var(--o2)}
+.si-saved{display:flex !important;background:var(--g3);color:var(--g2)}
+.si-error{display:flex !important;background:var(--r3);color:var(--r2)}
+.topbar-btn{font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 12px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:none;color:rgba(255,255,255,.5);cursor:pointer}
+.topbar-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
+
+.body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:190px;background:var(--dark);border-right:1px solid rgba(255,255,255,.06);padding:1rem 0;overflow-y:auto;flex-shrink:0}
+.sb-section{margin-bottom:1.25rem}
+.sb-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.22);padding:0 1rem;margin-bottom:4px}
+.sb-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 1rem;cursor:pointer;color:rgba(255,255,255,.4);transition:all .12s;border-left:2px solid transparent;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif}
+.sb-item:hover{color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
+.sb-item.on{color:#fff;background:rgba(255,255,255,.07);border-left:2px solid var(--g)}
+.sb-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;padding:1.5rem}
+.view{display:none}.view.on{display:block}
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.page-sub{font-size:12px;font-weight:300;color:var(--muted);margin-top:2px}
+.primary-btn{font-size:13px;font-weight:500;padding:8px 16px;border-radius:7px;border:none;background:var(--g);color:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.primary-btn:hover{background:var(--g2)}
+
+/* FORM CARDS */
+.form-card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:1.25rem;margin-bottom:1rem}
+.form-card-title{font-size:14px;font-weight:600;letter-spacing:-.2px;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--faint);display:flex;align-items:center;justify-content:space-between}
+.form-grid{display:grid;gap:10px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.gc2{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--paper);color:var(--ink)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--g)}
+.field textarea{resize:vertical;min-height:80px;line-height:1.55}
+.field input[type=color]{padding:3px 6px;height:38px;cursor:pointer}
+.field input[type=file]{padding:6px 10px;font-size:12px}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--faint)}
+.save-btn{font-size:13px;font-weight:500;padding:8px 20px;border-radius:7px;border:none;background:var(--g);color:#fff;cursor:pointer}
+.save-btn:hover{background:var(--g2)}
+.cancel-btn{font-size:13px;padding:8px 14px;border-radius:7px;border:1px solid var(--bd);background:none;color:var(--muted);cursor:pointer}
+.cancel-btn:hover{background:var(--faint)}
+
+/* TAGS INPUT */
+.tags-wrap{display:flex;gap:5px;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--paper);min-height:38px;align-items:center;cursor:text}
+.tags-wrap:focus-within{border-color:var(--g)}
+.tag-chip{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:3px;background:var(--g3);color:var(--g2);display:flex;align-items:center;gap:4px}
+.tag-rm{cursor:pointer;opacity:.6;font-size:11px;line-height:1;background:none;border:none;padding:0;color:inherit}
+.tag-rm:hover{opacity:1}
+.tags-input{border:none;background:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink);outline:none;min-width:80px;flex:1}
+
+/* PARAM PAIRS */
+.param-pairs{display:flex;flex-direction:column;gap:5px;margin-bottom:6px}
+.param-pair{display:flex;gap:6px;align-items:center}
+.param-pair input{flex:1;padding:6px 8px;border:1px solid var(--bd);border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--paper);color:var(--ink)}
+.param-pair input:focus{outline:none;border-color:var(--g)}
+.param-pair label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap}
+.param-rm{font-size:16px;color:var(--muted);cursor:pointer;background:none;border:none;padding:0 3px;line-height:1}
+.param-rm:hover{color:var(--r)}
+.add-param-link{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--g2);cursor:pointer;background:none;border:none;padding:2px 0}
+.add-param-link:hover{text-decoration:underline}
+
+/* ITEM LISTS */
+.item-list{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
+.item{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-actions{display:flex;gap:5px;flex-shrink:0}
+.edit-btn{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;border:1px solid var(--bd);background:none;color:var(--muted);cursor:pointer}
+.edit-btn:hover{border-color:var(--g4);color:var(--g2);background:var(--g3)}
+.del-btn{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;border:1px solid var(--bd);background:none;color:var(--muted);cursor:pointer}
+.del-btn:hover{border-color:#FCA5A5;color:var(--r2);background:var(--r3)}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sd-g{background:var(--g)}.sd-o{background:var(--o)}.sd-gr{background:#888}
+
+/* EMPTY */
+.empty-state{padding:2rem;text-align:center;color:var(--muted);font-size:13px}
+
+/* PROJECT SELECTOR */
+.proj-select-wrap{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:10px}
+.proj-select-wrap label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.proj-select-wrap select{flex:1;padding:6px 10px;border:1px solid var(--bd);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--paper);color:var(--ink)}
+.proj-select-wrap select:focus{outline:none;border-color:var(--g)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">デニス<span>·</span></div>
+    <div class="login-sub">admin panel</div>
+    <input class="login-input" type="password" id="login-pw" placeholder="password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Enter</button>
+    <div class="login-error" id="login-error">Incorrect password</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="t-left">
+      <div class="logo">デニス<span>·</span></div>
+      <div class="admin-badge">admin</div>
+    </div>
+    <div class="t-right">
+      <div class="save-indicator" id="save-indicator">saving...</div>
+      <button class="topbar-btn" onclick="window.open('index.html','_blank')">↗ view site</button>
+      <button class="topbar-btn" onclick="logout()">logout</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="sidebar">
+      <div class="sb-section">
+        <div class="sb-lbl">Content</div>
+        <button class="sb-item on" onclick="setView('projects',this)"><span class="sb-icon">◫</span>Projects</button>
+        <button class="sb-item" onclick="setView('learning',this)"><span class="sb-icon">◎</span>Learning</button>
+        <button class="sb-item" onclick="setView('sources',this)"><span class="sb-icon">⊕</span>Sources</button>
+        <button class="sb-item" onclick="setView('filament',this)"><span class="sb-icon">○</span>Filament</button>
+      </div>
+      <div class="sb-section">
+        <div class="sb-lbl">Per project</div>
+        <button class="sb-item" onclick="setView('notes',this)"><span class="sb-icon">✎</span>Notes & Log</button>
+        <button class="sb-item" onclick="setView('issues',this)"><span class="sb-icon">!</span>Issues</button>
+        <button class="sb-item" onclick="setView('profiles',this)"><span class="sb-icon">≡</span>Print Profiles</button>
+        <button class="sb-item" onclick="setView('components',this)"><span class="sb-icon">⊞</span>Components</button>
+      </div>
+      <div class="sb-section">
+        <div class="sb-lbl">Config</div>
+        <button class="sb-item" onclick="setView('settings',this)"><span class="sb-icon">⚙</span>Settings</button>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- PROJECTS -->
+      <div class="view on" id="view-projects">
+        <div class="page-hdr">
+          <div><div class="page-title">Projects</div><div class="page-sub">Add and manage 3D printing projects</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-project')">+ New project</button>
+        </div>
+        <div class="form-card" id="f-project" style="display:none">
+          <div class="form-card-title">New project <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-project')">cancel</button></div>
+          <div class="form-grid g2">
+            <div class="field gc2"><label>Project name *</label><input id="pj-name" type="text" placeholder="e.g. Air Quality Monitor"></div>
+            <div class="field"><label>Status</label><select id="pj-status"><option>In Progress</option><option>On Hold</option><option>Done</option></select></div>
+            <div class="field"><label>Progress %</label><input id="pj-pct" type="number" min="0" max="100" value="0"></div>
+            <div class="field gc2"><label>Hardware / tech</label><input id="pj-hw" type="text" placeholder="e.g. Arduino Pro Micro · PETG"></div>
+            <div class="field"><label>Start date</label><input id="pj-date" type="text" placeholder="e.g. Mar 2025"></div>
+            <div class="field"><label>MakerWorld URL</label><input id="pj-mw" type="text" placeholder="https://makerworld.com/models/..."></div>
+            <div class="field gc2"><label>Tags (press Enter to add)</label>
+              <div class="tags-wrap" id="pj-tags-wrap" onclick="this.querySelector('.tags-input').focus()">
+                <input class="tags-input" placeholder="type tag + enter" onkeydown="addTag(event,this,'pj-tags-wrap')">
+              </div>
+            </div>
+            <div class="field gc2"><label>Cover photo</label><input id="pj-img" type="file" accept="image/*"></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveProject()">Save project</button></div>
+        </div>
+        <div class="item-list" id="projects-list"></div>
+        <div class="empty-state" id="projects-empty" style="display:none">No projects yet. Add your first one above.</div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="view" id="view-notes">
+        <div class="page-hdr">
+          <div><div class="page-title">Notes & Log</div><div class="page-sub">Diary entries per project</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-note')">+ Add note</button>
+        </div>
+        <div class="proj-select-wrap"><label>Project</label><select id="notes-proj-sel" onchange="renderNotesList()"></select></div>
+        <div class="form-card" id="f-note" style="display:none">
+          <div class="form-card-title">New log entry <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-note')">cancel</button></div>
+          <div class="form-grid g2">
+            <div class="field"><label>Type</label><select id="note-type"><option value="note">Note</option><option value="issue">Issue detected</option><option value="fix">Fix applied</option><option value="milestone">Milestone</option></select></div>
+            <div class="field"><label>Date</label><input id="note-date" type="text" placeholder="e.g. 15 Mar 2025"></div>
+            <div class="field gc2"><label>Entry *</label><textarea id="note-text" placeholder="What happened? What did you try? What was the result?"></textarea></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveNote()">Save entry</button></div>
+        </div>
+        <div class="item-list" id="notes-list"></div>
+      </div>
+
+      <!-- ISSUES -->
+      <div class="view" id="view-issues">
+        <div class="page-hdr">
+          <div><div class="page-title">Issues</div><div class="page-sub">Track problems and resolution attempts</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-issue')">+ New issue</button>
+        </div>
+        <div class="proj-select-wrap"><label>Project</label><select id="issues-proj-sel" onchange="renderIssuesList()"></select></div>
+        <div class="form-card" id="f-issue" style="display:none">
+          <div class="form-card-title">New issue <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-issue')">cancel</button></div>
+          <div class="form-grid g2">
+            <div class="field gc2"><label>Issue title *</label><input id="iss-title" type="text" placeholder="e.g. Spaghetti on lid overhang"></div>
+            <div class="field"><label>Status</label><select id="iss-status"><option>Open</option><option>Investigating</option><option>Resolved</option></select></div>
+            <div class="field"><label>First seen</label><input id="iss-date" type="text" placeholder="e.g. 12 Mar 2025"></div>
+            <div class="field gc2"><label>Description</label><textarea id="iss-desc" placeholder="Describe when it happens and what you've observed"></textarea></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveIssue()">Save issue</button></div>
+        </div>
+        <div class="item-list" id="issues-list"></div>
+      </div>
+
+      <!-- PRINT PROFILES -->
+      <div class="view" id="view-profiles">
+        <div class="page-hdr">
+          <div><div class="page-title">Print Profiles</div><div class="page-sub">Slicer settings used for each part</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-profile')">+ New profile</button>
+        </div>
+        <div class="proj-select-wrap"><label>Project</label><select id="profiles-proj-sel" onchange="renderProfilesList()"></select></div>
+        <div class="form-card" id="f-profile" style="display:none">
+          <div class="form-card-title">New print profile <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-profile')">cancel</button></div>
+          <div class="form-grid g2">
+            <div class="field"><label>Profile name *</label><input id="prof-name" type="text" placeholder="e.g. Case Body v3 — final"></div>
+            <div class="field"><label>Part / STL file</label><input id="prof-part" type="text" placeholder="e.g. case_body_v3.stl"></div>
+            <div class="field gc2"><label>Base profile</label><input id="prof-base" type="text" placeholder="e.g. MakerWorld PETG Standard"></div>
+            <div class="field gc2"><label>Notes</label><textarea id="prof-notes" placeholder="What's different from the base? Why?"></textarea></div>
+            <div class="field gc2">
+              <label>Parameters — [parameter] [value] — mark deviations from base with ↑ or ↓</label>
+              <div class="param-pairs" id="prof-params">
+                <div class="param-pair"><input placeholder="parameter" value="layer_height"><input placeholder="value" value="0.20mm"><label><input type="checkbox"> deviation</label><button class="param-rm" onclick="this.parentElement.remove()">×</button></div>
+              </div>
+              <button class="add-param-link" onclick="addParamPair('prof-params')">+ add parameter</button>
+            </div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveProfile()">Save profile</button></div>
+        </div>
+        <div class="item-list" id="profiles-list"></div>
+      </div>
+
+      <!-- COMPONENTS -->
+      <div class="view" id="view-components">
+        <div class="page-hdr">
+          <div><div class="page-title">Components</div><div class="page-sub">Electronics and hardware costs per project</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-comp')">+ Add component</button>
+        </div>
+        <div class="proj-select-wrap"><label>Project</label><select id="comps-proj-sel" onchange="renderCompsList()"></select></div>
+        <div class="form-card" id="f-comp" style="display:none">
+          <div class="form-card-title">Add component <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-comp')">cancel</button></div>
+          <div class="form-grid g3">
+            <div class="field gc2"><label>Component name *</label><input id="comp-name" type="text" placeholder="e.g. SCD40 CO₂ Sensor"></div>
+            <div class="field"><label>Quantity</label><input id="comp-qty" type="number" min="1" value="1"></div>
+            <div class="field"><label>Unit price (€)</label><input id="comp-price" type="text" placeholder="2.80"></div>
+            <div class="field"><label>Supplier</label><input id="comp-supplier" type="text" placeholder="e.g. Mouser, AliExpress"></div>
+            <div class="field gc2" style="grid-column:1/-1"><label>Link to product page</label><input id="comp-url" type="text" placeholder="https://..."></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveComponent()">Save component</button></div>
+        </div>
+        <div class="item-list" id="comps-list"></div>
+      </div>
+
+      <!-- LEARNING -->
+      <div class="view" id="view-learning">
+        <div class="page-hdr">
+          <div><div class="page-title">Learning</div><div class="page-sub">Questions, answers and knowledge entries</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-entry')">+ New entry</button>
+        </div>
+        <div class="form-card" id="f-entry" style="display:none">
+          <div class="form-card-title">New learning entry <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-entry')">cancel</button></div>
+          <div class="form-grid">
+            <div class="field"><label>Question *</label><input id="entry-q" type="text" placeholder="e.g. Why does PETG string and how to fix it?"></div>
+            <div class="field"><label>Answer *</label><textarea id="entry-a" style="min-height:140px" placeholder="Write your answer. You can use basic HTML for formatting if needed."></textarea></div>
+            <div class="field"><label>Keywords (press Enter to add)</label>
+              <div class="tags-wrap" id="entry-kw-wrap" onclick="this.querySelector('.tags-input').focus()">
+                <input class="tags-input" placeholder="type keyword + enter" onkeydown="addTag(event,this,'entry-kw-wrap')">
+              </div>
+            </div>
+            <div class="field"><label>Linked project (optional)</label><select id="entry-proj"><option value="">— none —</option></select></div>
+            <div class="field"><label>Related entries (comma separated)</label><input id="entry-related" type="text" placeholder="e.g. I2C vs SPI, Encoder debouncing"></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveEntry()">Save entry</button></div>
+        </div>
+        <div class="item-list" id="entries-list"></div>
+        <div class="empty-state" id="entries-empty" style="display:none">No learning entries yet.</div>
+      </div>
+
+      <!-- SOURCES -->
+      <div class="view" id="view-sources">
+        <div class="page-hdr">
+          <div><div class="page-title">Sources</div><div class="page-sub">Links, YouTube videos, PDFs, GitHub repos</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-source')">+ Add source</button>
+        </div>
+        <div class="form-card" id="f-source" style="display:none">
+          <div class="form-card-title">Add source <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-source')">cancel</button></div>
+          <div class="form-grid g2">
+            <div class="field"><label>Type</label><select id="src-type"><option>YouTube</option><option>Link</option><option>PDF</option><option>GitHub</option><option>Other</option></select></div>
+            <div class="field"><label>Title *</label><input id="src-title" type="text" placeholder="e.g. PETG Bridging — CNC Kitchen"></div>
+            <div class="field gc2"><label>URL *</label><input id="src-url" type="text" placeholder="https://..."></div>
+            <div class="field gc2"><label>Keywords (press Enter to add)</label>
+              <div class="tags-wrap" id="src-kw-wrap" onclick="this.querySelector('.tags-input').focus()">
+                <input class="tags-input" placeholder="type keyword + enter" onkeydown="addTag(event,this,'src-kw-wrap')">
+              </div>
+            </div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveSource()">Save source</button></div>
+        </div>
+        <div class="item-list" id="sources-list"></div>
+        <div class="empty-state" id="sources-empty" style="display:none">No sources yet.</div>
+      </div>
+
+      <!-- FILAMENT -->
+      <div class="view" id="view-filament">
+        <div class="page-hdr">
+          <div><div class="page-title">Filament Library</div><div class="page-sub">Your spools — cost per gram calculated automatically</div></div>
+          <button class="primary-btn" onclick="toggleForm('f-fil')">+ Add spool</button>
+        </div>
+        <div class="form-card" id="f-fil" style="display:none">
+          <div class="form-card-title">Add filament spool <button class="cancel-btn" style="font-size:11px;padding:3px 10px" onclick="toggleForm('f-fil')">cancel</button></div>
+          <div class="form-grid g3">
+            <div class="field"><label>Brand *</label><input id="fil-brand" type="text" placeholder="e.g. Bambu Lab"></div>
+            <div class="field"><label>Material *</label><select id="fil-mat"><option>PLA</option><option>PLA+</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option><option>Other</option></select></div>
+            <div class="field"><label>Colour name</label><input id="fil-cname" type="text" placeholder="e.g. Jade White"></div>
+            <div class="field"><label>Colour</label><input id="fil-color" type="color" value="#F0EDE6"></div>
+            <div class="field"><label>Spool weight (g) *</label><input id="fil-weight" type="number" placeholder="1000"></div>
+            <div class="field"><label>Price paid (€) *</label><input id="fil-price" type="text" placeholder="22.99"></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveFilament()">Save spool</button></div>
+        </div>
+        <div class="item-list" id="filament-list"></div>
+        <div class="empty-state" id="filament-empty" style="display:none">No filament spools yet.</div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div class="page-hdr"><div><div class="page-title">Settings</div><div class="page-sub">GitHub connection and admin password</div></div></div>
+        <div class="form-card">
+          <div class="form-card-title">GitHub connection</div>
+          <div class="form-grid g2">
+            <div class="field"><label>GitHub username *</label><input id="cfg-user" type="text" placeholder="your-github-username"></div>
+            <div class="field"><label>Repository name *</label><input id="cfg-repo" type="text" value="denisu-xyz"></div>
+            <div class="field gc2"><label>Personal access token *</label><input id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"></div>
+            <div class="field gc2" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);line-height:1.6">
+              To get a token: GitHub.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token → tick "repo" → copy and paste here.
+            </div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="saveConfig()">Save & test connection</button></div>
+        </div>
+        <div class="form-card">
+          <div class="form-card-title">Admin password</div>
+          <div class="form-grid g2">
+            <div class="field"><label>New password</label><input id="cfg-pw1" type="password" placeholder="••••••••"></div>
+            <div class="field"><label>Confirm password</label><input id="cfg-pw2" type="password" placeholder="••••••••"></div>
+          </div>
+          <div class="form-actions"><button class="save-btn" onclick="savePassword()">Update password</button></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG & AUTH ──
+const DEFAULT_PASSWORD = 'denisu2025';
+let CONFIG = {};
+let DATA = { site:{title:'デニス',url:'denisu.xyz',description:'3D print · electronics · making'}, projects:[], filament:[], learning:[], sources:[] };
+
+function loadConfig() {
+  const c = localStorage.getItem('denisu_config');
+  if (c) CONFIG = JSON.parse(c);
+  const d = localStorage.getItem('denisu_data_cache');
+  if (d) DATA = JSON.parse(d);
+}
+
+function saveLocalCache() {
+  localStorage.setItem('denisu_data_cache', JSON.stringify(DATA));
+}
+
+function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  const stored = localStorage.getItem('denisu_admin_pw') || DEFAULT_PASSWORD;
+  if (pw === stored) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    loadConfig();
+    loadFromGitHub();
+    populateProjectSelects();
+    renderAll();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pw').value = '';
+  }
+}
+
+function logout() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-pw').value = '';
+}
+
+// ── GITHUB ──
+async function loadFromGitHub() {
+  if (!CONFIG.token || !CONFIG.user || !CONFIG.repo) return;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${CONFIG.user}/${CONFIG.repo}/contents/data.json`, {
+      headers: { 'Authorization': `token ${CONFIG.token}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const content = JSON.parse(atob(json.content.replace(/\n/g,'')));
+    DATA = content;
+    CONFIG.sha = json.sha;
+    localStorage.setItem('denisu_config', JSON.stringify(CONFIG));
+    saveLocalCache();
+    populateProjectSelects();
+    renderAll();
+  } catch(e) { console.error('GitHub load failed', e); }
+}
+
+async function saveToGitHub() {
+  if (!CONFIG.token || !CONFIG.user || !CONFIG.repo) {
+    showSaveStatus('error', 'GitHub not configured — go to Settings');
+    return false;
+  }
+  showSaveStatus('saving', 'saving...');
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(DATA, null, 2))));
+    const body = { message: 'update data.json', content, sha: CONFIG.sha };
+    const res = await fetch(`https://api.github.com/repos/${CONFIG.user}/${CONFIG.repo}/contents/data.json`, {
+      method: 'PUT',
+      headers: { 'Authorization': `token ${CONFIG.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+    const json = await res.json();
+    CONFIG.sha = json.content.sha;
+    localStorage.setItem('denisu_config', JSON.stringify(CONFIG));
+    saveLocalCache();
+    showSaveStatus('saved', '✓ saved — site updating');
+    return true;
+  } catch(e) {
+    showSaveStatus('error', 'Save failed: ' + e.message);
+    return false;
+  }
+}
+
+function showSaveStatus(type, msg) {
+  const el = document.getElementById('save-indicator');
+  el.className = 'save-indicator si-' + type;
+  el.textContent = msg;
+  if (type === 'saved') setTimeout(() => { el.className = 'save-indicator'; }, 4000);
+}
+
+// ── HELPERS ──
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function fmt(n) { return '€' + Number(n||0).toFixed(2).replace('.',','); }
+
+function getTagsFromWrap(wrapId) {
+  return [...document.getElementById(wrapId).querySelectorAll('.tag-chip')].map(c => c.textContent.replace('×','').trim());
+}
+
+function addTag(e, input, wrapId) {
+  if (e.key === 'Enter' && input.value.trim()) {
+    e.preventDefault();
+    const chip = document.createElement('div');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${input.value.trim()}<button class="tag-rm" onclick="this.parentElement.remove()">×</button>`;
+    input.parentElement.insertBefore(chip, input);
+    input.value = '';
+  }
+}
+
+function addParamPair(containerId) {
+  const pair = document.createElement('div');
+  pair.className = 'param-pair';
+  pair.innerHTML = `<input placeholder="parameter"><input placeholder="value"><label><input type="checkbox"> deviation</label><button class="param-rm" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById(containerId).appendChild(pair);
+}
+
+function toggleForm(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function setView(id, el) {
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('view-' + id).classList.add('on');
+}
+
+function populateProjectSelects() {
+  const projects = DATA.projects || [];
+  ['notes-proj-sel','issues-proj-sel','profiles-proj-sel','comps-proj-sel','entry-proj'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    const isOptional = id === 'entry-proj';
+    sel.innerHTML = (isOptional ? '<option value="">— none —</option>' : '') + projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    if (cur) sel.value = cur;
+  });
+}
+
+function renderAll() {
+  renderProjectsList();
+  renderNotesList();
+  renderIssuesList();
+  renderProfilesList();
+  renderCompsList();
+  renderEntriesList();
+  renderSourcesList();
+  renderFilamentList();
+}
+
+// ── PROJECTS ──
+function saveProject() {
+  const name = document.getElementById('pj-name').value.trim();
+  if (!name) return alert('Project name is required');
+  const proj = {
+    id: uid(), name,
+    status: document.getElementById('pj-status').value,
+    progress: parseInt(document.getElementById('pj-pct').value) || 0,
+    hardware: document.getElementById('pj-hw').value.trim(),
+    started: document.getElementById('pj-date').value.trim(),
+    makerworld_url: document.getElementById('pj-mw').value.trim(),
+    tags: getTagsFromWrap('pj-tags-wrap'),
+    log:[], issues:[], print_profiles:[], components:[], filament_used:[], images:[], pages:[], links:[]
+  };
+  DATA.projects.push(proj);
+  saveToGitHub();
+  renderProjectsList();
+  populateProjectSelects();
+  toggleForm('f-project');
+  document.getElementById('pj-name').value = '';
+  document.getElementById('pj-tags-wrap').querySelectorAll('.tag-chip').forEach(c=>c.remove());
+}
+
+function renderProjectsList() {
+  const list = document.getElementById('projects-list');
+  const empty = document.getElementById('projects-empty');
+  const projects = DATA.projects || [];
+  if (!projects.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = projects.map(p => {
+    const dotCls = p.status==='In Progress'?'sd-g':p.status==='On Hold'?'sd-o':'sd-gr';
+    return `<div class="item">
+      <div class="status-dot ${dotCls}"></div>
+      <div class="item-info"><div class="item-name">${p.name}</div><div class="item-meta">${p.status} · ${p.progress||0}% · ${(p.log||[]).length} notes · ${(p.issues||[]).length} issues · ${p.started||''}</div></div>
+      <div class="item-actions">
+        <button class="del-btn" onclick="deleteProject('${p.id}')">delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteProject(id) {
+  if (!confirm('Delete this project and all its data?')) return;
+  DATA.projects = DATA.projects.filter(p => p.id !== id);
+  saveToGitHub();
+  renderProjectsList();
+  populateProjectSelects();
+}
+
+// ── NOTES ──
+function saveNote() {
+  const projId = document.getElementById('notes-proj-sel').value;
+  const text = document.getElementById('note-text').value.trim();
+  if (!text) return alert('Entry text is required');
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.log.push({ id:uid(), type:document.getElementById('note-type').value, date:document.getElementById('note-date').value.trim()||new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}), text });
+  saveToGitHub();
+  renderNotesList();
+  toggleForm('f-note');
+  document.getElementById('note-text').value = '';
+}
+
+function renderNotesList() {
+  const projId = document.getElementById('notes-proj-sel').value;
+  const proj = DATA.projects.find(p => p.id === projId);
+  const list = document.getElementById('notes-list');
+  if (!proj) { list.innerHTML=''; return; }
+  const log = (proj.log||[]).slice().reverse();
+  list.innerHTML = log.length ? log.map(e => `<div class="item">
+    <div class="item-info"><div class="item-name">${e.text.substring(0,80)}${e.text.length>80?'...':''}</div><div class="item-meta">${e.date} · ${e.type}</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteNote('${projId}','${e.id}')">delete</button></div>
+  </div>`).join('') : '<div class="empty-state">No notes for this project.</div>';
+}
+
+function deleteNote(projId, noteId) {
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.log = proj.log.filter(n => n.id !== noteId);
+  saveToGitHub(); renderNotesList();
+}
+
+// ── ISSUES ──
+function saveIssue() {
+  const projId = document.getElementById('issues-proj-sel').value;
+  const title = document.getElementById('iss-title').value.trim();
+  if (!title) return alert('Issue title is required');
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.issues.push({ id:uid(), title, status:document.getElementById('iss-status').value, date:document.getElementById('iss-date').value.trim(), description:document.getElementById('iss-desc').value.trim(), attempts:[] });
+  saveToGitHub(); renderIssuesList(); toggleForm('f-issue');
+  document.getElementById('iss-title').value=''; document.getElementById('iss-desc').value='';
+}
+
+function renderIssuesList() {
+  const projId = document.getElementById('issues-proj-sel').value;
+  const proj = DATA.projects.find(p => p.id === projId);
+  const list = document.getElementById('issues-list');
+  if (!proj) { list.innerHTML=''; return; }
+  const issues = proj.issues||[];
+  list.innerHTML = issues.length ? issues.map(iss => `<div class="item" style="border-left:3px solid ${iss.status==='Open'?'var(--r)':iss.status==='Investigating'?'var(--o)':'var(--g)'}">
+    <div class="item-info"><div class="item-name">${iss.title}</div><div class="item-meta">${iss.status} · ${iss.date||''} · ${(iss.attempts||[]).length} attempts</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteIssue('${projId}','${iss.id}')">delete</button></div>
+  </div>`).join('') : '<div class="empty-state">No issues for this project.</div>';
+}
+
+function deleteIssue(projId, issId) {
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.issues = proj.issues.filter(i => i.id !== issId);
+  saveToGitHub(); renderIssuesList();
+}
+
+// ── PROFILES ──
+function saveProfile() {
+  const projId = document.getElementById('profiles-proj-sel').value;
+  const name = document.getElementById('prof-name').value.trim();
+  if (!name) return alert('Profile name is required');
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  const params = [...document.getElementById('prof-params').querySelectorAll('.param-pair')].map(pair => {
+    const inputs = pair.querySelectorAll('input[type=text],input:not([type])');
+    const deviation = pair.querySelector('input[type=checkbox]')?.checked;
+    return { key:(inputs[0]?.value||'').trim(), value:(inputs[1]?.value||'').trim(), deviation };
+  }).filter(p => p.key && p.value);
+  if (!proj.print_profiles) proj.print_profiles = [];
+  proj.print_profiles.push({ id:uid(), name, part:document.getElementById('prof-part').value.trim(), base_profile:document.getElementById('prof-base').value.trim(), notes:document.getElementById('prof-notes').value.trim(), parameters:params });
+  saveToGitHub(); renderProfilesList(); toggleForm('f-profile');
+}
+
+function renderProfilesList() {
+  const projId = document.getElementById('profiles-proj-sel').value;
+  const proj = DATA.projects.find(p => p.id === projId);
+  const list = document.getElementById('profiles-list');
+  if (!proj) { list.innerHTML=''; return; }
+  const profiles = proj.print_profiles||[];
+  list.innerHTML = profiles.length ? profiles.map(pr => `<div class="item">
+    <div class="item-info"><div class="item-name">${pr.name}</div><div class="item-meta">${pr.part||''} · Base: ${pr.base_profile||'—'} · ${(pr.parameters||[]).length} params</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteProfile('${projId}','${pr.id}')">delete</button></div>
+  </div>`).join('') : '<div class="empty-state">No profiles for this project.</div>';
+}
+
+function deleteProfile(projId, profId) {
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.print_profiles = proj.print_profiles.filter(pr => pr.id !== profId);
+  saveToGitHub(); renderProfilesList();
+}
+
+// ── COMPONENTS ──
+function saveComponent() {
+  const projId = document.getElementById('comps-proj-sel').value;
+  const name = document.getElementById('comp-name').value.trim();
+  if (!name) return alert('Component name is required');
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  if (!proj.components) proj.components = [];
+  proj.components.push({ id:uid(), name, qty:parseInt(document.getElementById('comp-qty').value)||1, unit_price:parseFloat(document.getElementById('comp-price').value.replace(',','.'))||0, supplier:document.getElementById('comp-supplier').value.trim(), url:document.getElementById('comp-url').value.trim() });
+  saveToGitHub(); renderCompsList(); toggleForm('f-comp');
+  document.getElementById('comp-name').value=''; document.getElementById('comp-url').value='';
+}
+
+function renderCompsList() {
+  const projId = document.getElementById('comps-proj-sel').value;
+  const proj = DATA.projects.find(p => p.id === projId);
+  const list = document.getElementById('comps-list');
+  if (!proj) { list.innerHTML=''; return; }
+  const comps = proj.components||[];
+  list.innerHTML = comps.length ? comps.map(c => `<div class="item">
+    <div class="item-info"><div class="item-name">${c.name} ×${c.qty} ${c.url?`<a href="${c.url}" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--g2);margin-left:6px">↗ link</a>`:''}</div><div class="item-meta">${fmt((c.qty||1)*(c.unit_price||0))} total · ${fmt(c.unit_price)} each · ${c.supplier||'—'}</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteComponent('${projId}','${c.id}')">delete</button></div>
+  </div>`).join('') : '<div class="empty-state">No components for this project.</div>';
+}
+
+function deleteComponent(projId, compId) {
+  const proj = DATA.projects.find(p => p.id === projId);
+  if (!proj) return;
+  proj.components = proj.components.filter(c => c.id !== compId);
+  saveToGitHub(); renderCompsList();
+}
+
+// ── LEARNING ──
+function saveEntry() {
+  const q = document.getElementById('entry-q').value.trim();
+  const a = document.getElementById('entry-a').value.trim();
+  if (!q || !a) return alert('Question and answer are required');
+  const entry = { id:uid(), question:q, answer:a, keywords:getTagsFromWrap('entry-kw-wrap'), project:document.getElementById('entry-proj').value, related:document.getElementById('entry-related').value.split(',').map(s=>s.trim()).filter(Boolean), source_ids:[] };
+  DATA.learning.push(entry);
+  saveToGitHub(); renderEntriesList(); toggleForm('f-entry');
+  document.getElementById('entry-q').value=''; document.getElementById('entry-a').value='';
+  document.getElementById('entry-kw-wrap').querySelectorAll('.tag-chip').forEach(c=>c.remove());
+}
+
+function renderEntriesList() {
+  const list = document.getElementById('entries-list');
+  const empty = document.getElementById('entries-empty');
+  const entries = DATA.learning||[];
+  if (!entries.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = entries.map(e => `<div class="item">
+    <div class="item-info"><div class="item-name">${e.question.substring(0,80)}${e.question.length>80?'...':''}</div><div class="item-meta">${(e.keywords||[]).join(', ')||'—'} ${e.project?'· '+e.project:''}</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteEntry('${e.id}')">delete</button></div>
+  </div>`).join('');
+}
+
+function deleteEntry(id) {
+  DATA.learning = DATA.learning.filter(e => e.id !== id);
+  saveToGitHub(); renderEntriesList();
+}
+
+// ── SOURCES ──
+function saveSource() {
+  const title = document.getElementById('src-title').value.trim();
+  const url = document.getElementById('src-url').value.trim();
+  if (!title || !url) return alert('Title and URL are required');
+  DATA.sources.push({ id:uid(), type:document.getElementById('src-type').value, title, url, keywords:getTagsFromWrap('src-kw-wrap') });
+  saveToGitHub(); renderSourcesList(); toggleForm('f-source');
+  document.getElementById('src-title').value=''; document.getElementById('src-url').value='';
+  document.getElementById('src-kw-wrap').querySelectorAll('.tag-chip').forEach(c=>c.remove());
+}
+
+function renderSourcesList() {
+  const list = document.getElementById('sources-list');
+  const empty = document.getElementById('sources-empty');
+  const sources = DATA.sources||[];
+  if (!sources.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = sources.map(s => `<div class="item">
+    <div class="item-info"><div class="item-name">${s.type} — ${s.title}</div><div class="item-meta"><a href="${s.url}" target="_blank" style="color:var(--g2)">${s.url.substring(0,50)}</a></div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteSource('${s.id}')">delete</button></div>
+  </div>`).join('');
+}
+
+function deleteSource(id) {
+  DATA.sources = DATA.sources.filter(s => s.id !== id);
+  saveToGitHub(); renderSourcesList();
+}
+
+// ── FILAMENT ──
+function saveFilament() {
+  const brand = document.getElementById('fil-brand').value.trim();
+  const weight = parseInt(document.getElementById('fil-weight').value);
+  const price = parseFloat(document.getElementById('fil-price').value.replace(',','.'));
+  if (!brand || !weight || !price) return alert('Brand, weight and price are required');
+  DATA.filament.push({ id:uid(), brand, material:document.getElementById('fil-mat').value, color_name:document.getElementById('fil-cname').value.trim(), color:document.getElementById('fil-color').value, weight_g:weight, price, price_per_gram: price/weight });
+  saveToGitHub(); renderFilamentList(); toggleForm('f-fil');
+  document.getElementById('fil-brand').value=''; document.getElementById('fil-cname').value='';
+}
+
+function renderFilamentList() {
+  const list = document.getElementById('filament-list');
+  const empty = document.getElementById('filament-empty');
+  const filament = DATA.filament||[];
+  if (!filament.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = filament.map(f => `<div class="item">
+    <div style="width:12px;height:12px;border-radius:50%;background:${f.color};border:1px solid rgba(0,0,0,.1);flex-shrink:0"></div>
+    <div class="item-info"><div class="item-name">${f.brand} ${f.material} ${f.color_name||''}</div><div class="item-meta">${f.weight_g}g · ${fmt(f.price)} · €${(f.price_per_gram||0).toFixed(3).replace('.',',')} per gram</div></div>
+    <div class="item-actions"><button class="del-btn" onclick="deleteFilament('${f.id}')">delete</button></div>
+  </div>`).join('');
+}
+
+function deleteFilament(id) {
+  DATA.filament = DATA.filament.filter(f => f.id !== id);
+  saveToGitHub(); renderFilamentList();
+}
+
+// ── SETTINGS ──
+function saveConfig() {
+  CONFIG.user = document.getElementById('cfg-user').value.trim();
+  CONFIG.repo = document.getElementById('cfg-repo').value.trim();
+  CONFIG.token = document.getElementById('cfg-token').value.trim();
+  localStorage.setItem('denisu_config', JSON.stringify(CONFIG));
+  loadFromGitHub();
+}
+
+function savePassword() {
+  const pw1 = document.getElementById('cfg-pw1').value;
+  const pw2 = document.getElementById('cfg-pw2').value;
+  if (!pw1) return alert('Password cannot be empty');
+  if (pw1 !== pw2) return alert('Passwords do not match');
+  localStorage.setItem('denisu_admin_pw', pw1);
+  alert('Password updated');
+  document.getElementById('cfg-pw1').value=''; document.getElementById('cfg-pw2').value='';
+}
+
+// ── INIT ──
+document.getElementById('login-pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

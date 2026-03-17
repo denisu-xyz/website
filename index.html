@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デニス · make</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1D9E75;--g2:#0F6E56;--g3:#E8F8F2;--g4:#9FE1CB;
+  --o:#EF9F27;--o2:#BA7517;--o3:#FEF3E2;--o4:#FAC775;
+  --h:#7C3AED;--h2:#5B21B6;--h3:#EDE9FE;--h4:#C4B5FD;
+  --b:#185FA5;--b2:#0C447C;--b3:#E6F1FB;--b4:#85B7EB;
+  --r:#E24B4A;--r2:#993C1D;--r3:#FCEBEB;
+  --ink:#111;--paper:#F9F8F6;--card:#FFF;
+  --bd:rgba(0,0,0,0.09);--muted:#888;--faint:rgba(0,0,0,0.055)
+}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;height:52px;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;background:rgba(249,248,246,0.93);backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
+.nav.scrolled{border-bottom-color:var(--bd)}
+.nav-logo{font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:17px;letter-spacing:2px;color:var(--ink);opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s;pointer-events:none;cursor:pointer}
+.nav-logo.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.nav-logo span{color:var(--o)}
+.nav-links{display:flex;gap:2px}
+.nb{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:400;padding:5px 13px;border-radius:6px;border:none;background:none;color:var(--muted);cursor:pointer;transition:all .12s}
+.nb:hover{color:var(--ink);background:var(--faint)}
+.nb.on{background:var(--ink);color:#fff;font-weight:500}
+
+/* PAGES */
+.pg{display:none}.pg.on{display:block}
+
+/* HERO */
+.hero{padding:2.75rem 1.5rem 1.75rem;border-bottom:1px solid var(--bd)}
+.hero-kana{font-family:'Noto Sans JP',sans-serif;font-weight:700;font-size:68px;letter-spacing:6px;line-height:1;color:var(--ink);transition:opacity .3s,transform .3s}
+.hero-kana span{color:var(--o)}
+.hero-meta{margin-top:.65rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.hero-url{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.hero-sep{width:3px;height:3px;border-radius:50%;background:var(--bd)}
+.hero-desc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.hero-stats{display:flex;gap:1.5rem;margin-top:1.25rem}
+.hs{display:flex;align-items:baseline;gap:5px}
+.hs-n{font-size:22px;font-weight:700;letter-spacing:-1px}
+.hs-n.g{color:var(--g)}.hs-n.o{color:var(--o)}.hs-n.r{color:var(--r)}
+.hs-l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+/* FILTERS */
+.filters{padding:1rem 1.5rem .75rem;display:flex;gap:5px;flex-wrap:wrap}
+.pill{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;padding:5px 14px;border-radius:20px;border:1px solid var(--bd);color:var(--muted);background:var(--card);cursor:pointer;transition:all .12s}
+.pill:hover{border-color:#aaa;color:var(--ink)}
+.pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* EMPTY STATE */
+.empty{padding:3rem 1.5rem;text-align:center}
+.empty-icon{font-size:36px;margin-bottom:1rem;opacity:.3}
+.empty-title{font-size:16px;font-weight:600;color:var(--muted);margin-bottom:.5rem}
+.empty-sub{font-size:13px;font-weight:300;color:var(--muted)}
+.empty-sub a{color:var(--g2);text-decoration:none;font-weight:500}
+.empty-sub a:hover{text-decoration:underline}
+
+/* GRID */
+.grid{padding:0 1.5rem 2rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:.25rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;cursor:pointer;overflow:hidden;transition:border-color .12s,transform .15s,box-shadow .15s}
+.card:hover{border-color:#bbb;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+.cthumb{height:130px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--paper);border-bottom:1px solid var(--bd)}
+.cthumb img{width:100%;height:100%;object-fit:cover}
+.cthumb-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;height:100%;padding:12px}
+.cthumb-name{font-size:13px;font-weight:600;color:var(--muted);text-align:center;line-height:1.3;opacity:.5}
+.progress-stripe{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(0,0,0,0.06)}
+.ps-fill{height:100%}.ps-g{background:var(--g)}.ps-o{background:var(--o)}.ps-gr{background:#ccc}
+.cbody{padding:.875rem 1.125rem}
+.ctop{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.cs{font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.cs-p{background:var(--g3);color:var(--g2)}.cs-h{background:var(--h3);color:var(--h2)}.cs-d{background:var(--faint);color:var(--muted)}
+.cpct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.cname{font-size:16px;font-weight:700;letter-spacing:-.3px;line-height:1.2;margin-bottom:.3rem}
+.cdate{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:.6rem}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:.65rem}
+.tag{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--faint);color:var(--muted)}
+.cfoot{display:flex;align-items:center;gap:8px;padding-top:.6rem;border-top:1px solid var(--faint)}
+.cf{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+.cf.issue{color:var(--o2)}
+.cfcost{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--g2);margin-left:auto}
+.mw-badge{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;background:#1a1a18;color:#fff;margin-left:auto}
+.mw-dot{width:5px;height:5px;border-radius:50%;background:var(--o)}
+
+/* PANEL */
+.pw{min-height:100vh;display:none;position:fixed;inset:0;z-index:200;align-items:flex-start;justify-content:flex-end;background:rgba(0,0,0,.22)}
+.pw.on{display:flex}
+.panel{background:var(--card);width:460px;max-width:95vw;height:100vh;overflow-y:auto;border-left:1px solid var(--bd);display:flex;flex-direction:column}
+.ph{padding:1.125rem 1.25rem;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:flex-start;position:sticky;top:0;background:var(--card);z-index:1}
+.ph-title{font-size:18px;font-weight:700;letter-spacing:-.3px;line-height:1.2}
+.ph-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px}
+.xbtn{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;padding:0 0 0 10px;flex-shrink:0}
+.ptabs{display:flex;border-bottom:1px solid var(--bd);padding:0 1.25rem;overflow-x:auto;position:sticky;top:57px;background:var(--card);z-index:1}
+.ptab{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;padding:9px 10px 8px;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap}
+.ptab.on{color:var(--ink);font-weight:500;border-bottom-color:var(--g)}
+.pbody{padding:1.25rem;flex:1}
+.ptc{display:none}.ptc.on{display:block}
+.ps-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;margin-top:1.25rem}
+.ps-lbl:first-of-type{margin-top:0}
+.prog-track{height:4px;background:var(--faint);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.prog-fill{height:100%;border-radius:2px;background:var(--g)}
+.prog-pct{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:var(--g)}
+.cost-n{font-size:26px;font-weight:700;letter-spacing:-1px}
+.cost-s{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px}
+.cost-rows{margin-top:10px;border-top:1px solid var(--bd)}
+.cr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--faint);font-family:'JetBrains Mono',monospace;font-size:11px}
+.cr-k{color:var(--muted)}.cr-v{font-weight:500}
+.fil-chips{display:flex;gap:6px;flex-wrap:wrap}
+.fc{display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:6px;padding:5px 10px;font-size:12px;background:var(--paper)}
+.fdot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(0,0,0,.1);flex-shrink:0}
+.fc-g{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--g2)}
+.links-col{display:flex;flex-direction:column;gap:5px}
+.lk{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:7px;font-size:12px;background:var(--paper);cursor:pointer;text-decoration:none;color:var(--ink);transition:background .12s}
+.lk:hover{background:var(--g3)}
+.lbadge{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;background:var(--g);color:#fff;flex-shrink:0}
+.lbadge.o{background:var(--o)}.lbadge.dark{background:#1a1a18}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.gt{height:82px;border-radius:8px;border:1px solid var(--bd);overflow:hidden;cursor:pointer;transition:opacity .12s}
+.gt:hover{opacity:.8}
+.gt img{width:100%;height:100%;object-fit:cover}
+.emb-list{display:flex;flex-direction:column;gap:8px}
+.emb{border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.emb-hdr{padding:9px 12px;display:flex;justify-content:space-between;align-items:center;background:var(--paper)}
+.emb-nm{font-size:13px;font-weight:500}
+.emb-type{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;background:var(--o3);color:var(--o2)}
+.emb-frame{width:100%;height:220px;border:none;background:#111}
+
+/* ISSUES in panel */
+.issue-card{border:1px solid var(--bd);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.issue-card.open{border-left:3px solid var(--r)}
+.issue-card.investigating{border-left:3px solid var(--o)}
+.issue-card.resolved{border-left:3px solid var(--g)}
+.issue-hdr{padding:9px 12px;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.issue-title{font-size:13px;font-weight:600;margin-bottom:3px}
+.issue-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.issue-status{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:500}
+.st-open{background:var(--r3);color:var(--r2)}.st-inv{background:var(--o3);color:var(--o2)}.st-res{background:var(--g3);color:var(--g2)}
+.issue-date{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)}
+.issue-arr{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);transition:transform .18s;flex-shrink:0}
+.issue-body{display:none;padding:0 12px 12px;border-top:1px solid var(--faint)}
+.issue-card.expanded .issue-body{display:block}
+.issue-card.expanded .issue-arr{transform:rotate(90deg)}
+.issue-desc{font-size:12px;font-weight:300;color:var(--muted);line-height:1.6;margin:8px 0}
+.tl{position:relative;padding-left:14px}
+.tl::before{content:'';position:absolute;left:3px;top:6px;bottom:0;width:1px;background:var(--bd)}
+.tli{position:relative;margin-bottom:12px}
+.tldot{position:absolute;left:-12px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--g);border:1.5px solid var(--card)}
+.tldot.fail{background:var(--r)}.tldot.partial{background:var(--o)}.tldot.fix{background:var(--g)}
+.tld{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.tlt{font-size:12px;line-height:1.55}
+.attempt-changes{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
+.change-chip{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;background:var(--h3);color:var(--h2)}
+
+/* PROFILES in panel */
+.profile-card{border:1px solid var(--bd);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.profile-hdr{padding:9px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.profile-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.profile-base{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)}
+.profile-body{display:none;border-top:1px solid var(--faint);padding:10px 12px}
+.profile-card.expanded .profile-body{display:block}
+.param-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.param-row{display:flex;border:1px solid var(--bd);border-radius:5px;overflow:hidden}
+.param-key{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--paper);padding:5px 7px;border-right:1px solid var(--bd);flex-shrink:0;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.param-val{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;padding:5px 7px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.param-val.dev{color:var(--o2);background:var(--o3)}
+
+/* COMPONENTS in panel */
+.comp-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.comp-tbl th{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:400;text-align:left;padding:5px 6px;border-bottom:1px solid var(--bd)}
+.comp-tbl th:not(:first-child){text-align:right}
+.comp-tbl td{padding:7px 6px;border-bottom:1px solid var(--faint);vertical-align:top}
+.comp-tbl tr:last-child td{border-bottom:none}
+.comp-name{font-weight:500;margin-bottom:2px}
+.comp-supplier{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)}
+.comp-link{color:var(--g2);text-decoration:none}.comp-link:hover{text-decoration:underline}
+
+/* MakerWorld */
+.mw-card{border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:8px}
+.mw-thumb{height:100px;background:#1a1a18;display:flex;align-items:center;justify-content:center}
+.mw-thumb img{width:100%;height:100%;object-fit:cover}
+.mw-body{padding:9px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.mw-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.mw-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+.mw-open{font-family:'JetBrains Mono',monospace;font-size:9px;padding:4px 10px;border-radius:4px;background:#1a1a18;color:#fff;border:none;cursor:pointer;flex-shrink:0;text-decoration:none;display:inline-block}
+
+/* COSTS PAGE */
+.co-head{padding:2.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--bd);display:flex;align-items:flex-end;justify-content:space-between}
+.co-title{font-size:30px;font-weight:700;letter-spacing:-1px}
+.co-total-n{font-size:34px;font-weight:700;letter-spacing:-1.5px;color:var(--g)}
+.co-total-l{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;text-align:right}
+.co-body{padding:1.5rem}
+.co-sec{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:1.5rem 0 10px;padding-bottom:5px;border-bottom:1px solid var(--faint)}
+.co-sec:first-of-type{margin-top:0}
+.br{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.br-name{font-size:12px;color:var(--muted);width:170px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.br-track{flex:1;height:16px;background:var(--faint);border-radius:3px;overflow:hidden}
+.br-fill{height:100%;border-radius:3px;background:var(--g)}
+.br-fill.o{background:var(--o)}.br-fill.gr{background:#ccc}
+.br-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--ink);width:50px;text-align:right;flex-shrink:0}
+.fil-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.fil-tbl th{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:400;text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd)}
+.fil-tbl th:not(:first-child){text-align:right}
+.fil-tbl td{padding:8px;border-bottom:1px solid var(--faint);vertical-align:middle}
+.fil-tbl td:not(:first-child){font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right}
+.fil-tbl tr:last-child td{border-bottom:none}
+.fdot2{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;border:1px solid rgba(0,0,0,.1)}
+
+/* LEARNING PAGE */
+.learn-layout{display:grid;grid-template-columns:190px 1fr;min-height:calc(100vh - 52px)}
+.learn-sidebar{border-right:1px solid var(--bd);padding:1rem;background:var(--card);position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto}
+.sb-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px;margin-top:1.25rem;padding-bottom:5px;border-bottom:1px solid var(--faint)}
+.sb-lbl:first-of-type{margin-top:0}
+.sb-item{font-size:12px;padding:5px 8px;border-radius:6px;cursor:pointer;color:var(--muted);transition:all .12s;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.sb-item:hover{background:var(--faint);color:var(--ink)}
+.sb-item.on{background:var(--ink);color:#fff}
+.sb-item.on .sb-cnt{background:rgba(255,255,255,.2);color:#fff}
+.sb-cnt{font-family:'JetBrains Mono',monospace;font-size:9px;background:var(--faint);color:var(--muted);padding:1px 6px;border-radius:10px;flex-shrink:0}
+.topic-chips{display:flex;flex-direction:column;gap:3px}
+.topic-chip{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:opacity .12s}
+.topic-chip:hover{opacity:.75}
+.tc-n{font-size:9px;opacity:.6}
+.learn-main{padding:1.25rem 1.5rem}
+.learn-view{display:none}.learn-view.on{display:block}
+.search-wrap{display:flex;gap:8px;margin-bottom:1.25rem;align-items:center}
+.search{flex:1;padding:9px 14px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--card);color:var(--ink)}
+.search:focus{outline:none;border-color:var(--g)}
+.entry-list{display:flex;flex-direction:column;gap:8px}
+.entry{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer}
+.entry:hover{border-color:#bbb}
+.entry.expanded{border-color:var(--g4)}
+.entry-hdr{padding:11px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.entry-q{font-size:14px;font-weight:600;letter-spacing:-.2px;line-height:1.3;flex:1}
+.entry-arr{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);transition:transform .18s;flex-shrink:0;margin-top:1px}
+.entry.expanded .entry-arr{transform:rotate(90deg)}
+.entry-meta{display:flex;align-items:center;gap:5px;margin-top:5px;flex-wrap:wrap}
+.kw{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer}
+.entry-body{display:none;padding:0 14px 14px;border-top:1px solid var(--faint)}
+.entry.expanded .entry-body{display:block}
+.entry-answer{font-size:13px;font-weight:300;color:#444;line-height:1.75;margin:10px 0}
+.entry-answer code{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--faint);padding:2px 5px;border-radius:3px}
+.entry-sources-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:10px 0 6px}
+.src-ref{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:4px;background:var(--paper);border:1px solid var(--bd);margin-right:5px;margin-bottom:4px;cursor:pointer;text-decoration:none;color:var(--ink);transition:background .12s}
+.src-ref:hover{background:var(--b3)}
+.related-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:10px 0 6px}
+.related-chip{font-size:11px;padding:3px 10px;border-radius:5px;background:var(--faint);color:var(--muted);cursor:pointer;display:inline-block;margin-right:4px;margin-bottom:4px}
+.related-chip:hover{background:var(--g3);color:var(--g2)}
+.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.source-card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;cursor:pointer;text-decoration:none;display:block;color:var(--ink);transition:border-color .12s}
+.source-card:hover{border-color:#bbb}
+.source-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.source-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.si-yt{background:#FECACA;color:#CC0000}.si-link{background:var(--b3);color:var(--b2)}.si-pdf{background:var(--r3);color:var(--r2)}.si-gh{background:#F3F4F6;color:#374151}
+.source-title{font-size:13px;font-weight:600;line-height:1.3}
+.source-url{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.source-used{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="sitenav">
+  <div class="nav-logo" id="nav-logo" onclick="goPage('log',document.querySelector('.nb'))">デニス<span>·</span></div>
+  <div class="nav-links">
+    <button class="nb on" onclick="goPage('log',this)">Log</button>
+    <button class="nb" onclick="goPage('costs',this)">Costs</button>
+    <button class="nb" onclick="goPage('learning',this)">Learning</button>
+  </div>
+</nav>
+
+<!-- LOG PAGE -->
+<div class="pg on" id="pg-log">
+  <div class="hero" id="hero">
+    <div class="hero-kana" id="hero-kana">デニ<span>ス</span></div>
+    <div class="hero-meta">
+      <span class="hero-url">denisu.xyz</span>
+      <span class="hero-sep"></span>
+      <span class="hero-desc">3D print · electronics · making</span>
+    </div>
+    <div class="hero-stats">
+      <div class="hs"><div class="hs-n g" id="stat-progress">0</div><div class="hs-l">in progress</div></div>
+      <div class="hs"><div class="hs-n o" id="stat-hold">0</div><div class="hs-l">on hold</div></div>
+      <div class="hs"><div class="hs-n" id="stat-done">0</div><div class="hs-l">done</div></div>
+      <div class="hs"><div class="hs-n r" id="stat-issues">0</div><div class="hs-l">open issues</div></div>
+    </div>
+  </div>
+  <div class="filters">
+    <div class="pill on" onclick="filterProjects('all',this)">All</div>
+    <div class="pill" onclick="filterProjects('In Progress',this)">In Progress</div>
+    <div class="pill" onclick="filterProjects('On Hold',this)">On Hold</div>
+    <div class="pill" onclick="filterProjects('Done',this)">Done</div>
+  </div>
+  <div class="grid" id="projects-grid"></div>
+
+  <!-- PANEL -->
+  <div class="pw" id="pw" onclick="maybeClose(event)">
+    <div class="panel">
+      <div class="ph">
+        <div>
+          <div class="ph-title" id="p-title">—</div>
+          <div class="ph-sub" id="p-sub">—</div>
+        </div>
+        <button class="xbtn" onclick="closePanel()">×</button>
+      </div>
+      <div class="ptabs">
+        <button class="ptab on" onclick="switchTab('ov',this)">Overview</button>
+        <button class="ptab" onclick="switchTab('gal',this)">Gallery</button>
+        <button class="ptab" onclick="switchTab('issues',this)">Issues</button>
+        <button class="ptab" onclick="switchTab('profiles',this)">Profiles</button>
+        <button class="ptab" onclick="switchTab('costs',this)">Costs</button>
+        <button class="ptab" onclick="switchTab('mw',this)">MakerWorld</button>
+        <button class="ptab" onclick="switchTab('pgs',this)">Pages</button>
+        <button class="ptab" onclick="switchTab('log',this)">Log</button>
+      </div>
+      <div class="pbody">
+        <div class="ptc on" id="tab-ov"></div>
+        <div class="ptc" id="tab-gal"></div>
+        <div class="ptc" id="tab-issues"></div>
+        <div class="ptc" id="tab-profiles"></div>
+        <div class="ptc" id="tab-costs"></div>
+        <div class="ptc" id="tab-mw"></div>
+        <div class="ptc" id="tab-pgs"></div>
+        <div class="ptc" id="tab-log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COSTS PAGE -->
+<div class="pg" id="pg-costs">
+  <div class="co-head">
+    <div><div class="co-title">Costs & Filament</div></div>
+    <div><div class="co-total-n" id="co-total">€0,00</div><div class="co-total-l">total spent</div></div>
+  </div>
+  <div class="co-body">
+    <div class="co-sec">cost per project</div>
+    <div id="co-bars"></div>
+    <div class="co-sec" style="margin-top:1.75rem">filament library</div>
+    <table class="fil-tbl">
+      <thead><tr><th>Filament</th><th>Price paid</th><th>€/g</th><th>Projects</th></tr></thead>
+      <tbody id="fil-tbody"></tbody>
+    </table>
+    <div id="co-empty-fil" style="display:none;padding:2rem;text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">No filament added yet — use the admin panel.</div>
+  </div>
+</div>
+
+<!-- LEARNING PAGE -->
+<div class="pg" id="pg-learning">
+  <div class="learn-layout">
+    <div class="learn-sidebar" id="learn-sidebar">
+      <div class="sb-lbl" style="margin-top:0">View</div>
+      <div class="sb-item on" onclick="setLearnView('entries',this)" id="sb-entries">All entries <span class="sb-cnt" id="sb-entries-cnt">0</span></div>
+      <div class="sb-item" onclick="setLearnView('sources',this)" id="sb-sources">Sources <span class="sb-cnt" id="sb-sources-cnt">0</span></div>
+      <div class="sb-lbl">Topics</div>
+      <div class="topic-chips" id="topic-chips"></div>
+      <div class="sb-lbl">Linked to project</div>
+      <div id="learn-proj-links"></div>
+    </div>
+    <div class="learn-main">
+      <div class="learn-view on" id="lv-entries">
+        <div class="search-wrap">
+          <input class="search" id="entry-search" placeholder="Search entries, keywords, answers..." oninput="filterEntries(this.value)">
+        </div>
+        <div class="entry-list" id="entry-list"></div>
+        <div id="entries-empty" class="empty" style="display:none">
+          <div class="empty-icon">◎</div>
+          <div class="empty-title">No learning entries yet</div>
+          <div class="empty-sub">Add your first entry via <a href="admin.html">admin panel</a></div>
+        </div>
+      </div>
+      <div class="learn-view" id="lv-sources">
+        <div class="source-grid" id="source-grid"></div>
+        <div id="sources-empty" class="empty" style="display:none">
+          <div class="empty-icon">⊕</div>
+          <div class="empty-title">No sources yet</div>
+          <div class="empty-sub">Add links, videos and PDFs via <a href="admin.html">admin panel</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+let DATA = {};
+
+async function loadData() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    DATA = await res.json();
+    render();
+  } catch(e) {
+    console.error('Failed to load data.json', e);
+    DATA = { site:{}, projects:[], filament:[], learning:[], sources:[] };
+    render();
+  }
+}
+
+// ── RENDER ──
+function render() {
+  renderStats();
+  renderProjects();
+  renderCosts();
+  renderLearning();
+}
+
+function fmt(n) {
+  return '€' + Number(n).toFixed(2).replace('.', ',');
+}
+
+function projectTotal(p) {
+  let total = 0;
+  (p.filament_used || []).forEach(fu => {
+    const spool = (DATA.filament || []).find(f => f.id === fu.filament_id);
+    if (spool && spool.price_per_gram) total += fu.grams * spool.price_per_gram;
+  });
+  (p.components || []).forEach(c => { total += (c.qty || 1) * (c.unit_price || 0); });
+  return total;
+}
+
+function openIssuesCount(p) {
+  return (p.issues || []).filter(i => i.status !== 'Resolved').length;
+}
+
+function renderStats() {
+  const projects = DATA.projects || [];
+  document.getElementById('stat-progress').textContent = projects.filter(p => p.status === 'In Progress').length;
+  document.getElementById('stat-hold').textContent = projects.filter(p => p.status === 'On Hold').length;
+  document.getElementById('stat-done').textContent = projects.filter(p => p.status === 'Done').length;
+  document.getElementById('stat-issues').textContent = projects.reduce((acc, p) => acc + openIssuesCount(p), 0);
+}
+
+function renderProjects(filter) {
+  const grid = document.getElementById('projects-grid');
+  const projects = (DATA.projects || []).filter(p => !filter || filter === 'all' || p.status === filter);
+  if (!projects.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">◫</div><div class="empty-title">No projects yet</div><div class="empty-sub">Add your first project via <a href="admin.html">admin panel</a></div></div>';
+    return;
+  }
+  grid.innerHTML = projects.map(p => {
+    const total = projectTotal(p);
+    const issues = openIssuesCount(p);
+    const pct = p.progress || 0;
+    const statusCls = p.status === 'In Progress' ? 'cs-p' : p.status === 'On Hold' ? 'cs-h' : 'cs-d';
+    const barCls = p.status === 'In Progress' ? 'ps-g' : p.status === 'On Hold' ? 'ps-o' : 'ps-gr';
+    const tags = (p.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+    const thumb = p.cover_image
+      ? `<img src="${p.cover_image}" alt="${p.name}">`
+      : `<div class="cthumb-inner"><div class="cthumb-name">${p.name}</div></div>`;
+    const mwBadge = p.makerworld_url ? `<div class="mw-badge"><div class="mw-dot"></div>MakerWorld</div>` : '';
+    const costStr = total > 0 ? `<span class="cfcost">${fmt(total)}</span>` : '';
+    const issueStr = issues > 0 ? `<span class="cf issue">${issues} issue${issues>1?'s':''}</span>` : '';
+    const noteStr = (p.log || []).length > 0 ? `<span class="cf">${p.log.length} note${p.log.length>1?'s':''}</span>` : '';
+    return `<div class="card" onclick="openPanel('${p.id}')">
+      <div class="cthumb">${thumb}<div class="progress-stripe"><div class="ps-fill ${barCls}" style="width:${pct}%"></div></div></div>
+      <div class="cbody">
+        <div class="ctop"><span class="cs ${statusCls}">${p.status}</span><span class="cpct">${pct}%</span></div>
+        <div class="cname">${p.name}</div>
+        <div class="cdate">${p.started ? 'Started ' + p.started : ''} ${p.hardware ? '· ' + p.hardware : ''}</div>
+        <div class="tags">${tags}</div>
+        <div class="cfoot">${noteStr}${issueStr}${mwBadge}${costStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterProjects(f, el) {
+  document.querySelectorAll('.filters .pill').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  renderProjects(f);
+}
+
+// ── PANEL ──
+function openPanel(id) {
+  const p = (DATA.projects || []).find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('p-title').textContent = p.name;
+  document.getElementById('p-sub').textContent = [p.hardware, p.status, p.progress ? p.progress + '%' : ''].filter(Boolean).join(' · ');
+
+  // OVERVIEW
+  const total = projectTotal(p);
+  const filHtml = (p.filament_used || []).map(fu => {
+    const spool = (DATA.filament || []).find(f => f.id === fu.filament_id);
+    if (!spool) return '';
+    return `<div class="fc"><div class="fdot" style="background:${spool.color||'#ccc'}"></div><span style="font-weight:500">${spool.brand} ${spool.material}</span><span class="fc-g">${fu.grams}g</span></div>`;
+  }).join('');
+  const linksHtml = (p.links || []).map(l => `<a class="lk" href="${l.url}" target="_blank"><span class="lbadge ${l.type==='PDF'?'o':l.type==='CAD'?'dark':''}">${l.type}</span>${l.label}</a>`).join('');
+  const costRowsHtml = [...(p.filament_used||[]).map(fu => {
+    const spool = (DATA.filament||[]).find(f=>f.id===fu.filament_id);
+    if(!spool) return '';
+    return `<div class="cr"><span class="cr-k">${spool.brand} ${spool.material} (${fu.grams}g)</span><span class="cr-v">${fmt(fu.grams*(spool.price_per_gram||0))}</span></div>`;
+  }), ...(p.components||[]).map(c => `<div class="cr"><span class="cr-k">${c.name} ×${c.qty||1}</span><span class="cr-v">${fmt((c.qty||1)*(c.unit_price||0))}</span></div>`)].join('');
+  document.getElementById('tab-ov').innerHTML = `
+    <div class="ps-lbl">Progress</div>
+    <div class="prog-track"><div class="prog-fill" style="width:${p.progress||0}%"></div></div>
+    <div class="prog-pct">${p.progress||0}%</div>
+    ${total>0?`<div class="ps-lbl">Total cost</div><div class="cost-n">${fmt(total)}</div><div class="cost-s">filament + components</div><div class="cost-rows">${costRowsHtml}</div>`:''}
+    ${filHtml?`<div class="ps-lbl">Filament used</div><div class="fil-chips">${filHtml}</div>`:''}
+    ${linksHtml?`<div class="ps-lbl">Files & links</div><div class="links-col">${linksHtml}</div>`:''}
+    ${!total&&!filHtml&&!linksHtml?'<div style="font-size:13px;color:var(--muted);padding:1rem 0">No details yet — add via admin panel.</div>':''}`;
+
+  // GALLERY
+  const imgs = p.images || [];
+  document.getElementById('tab-gal').innerHTML = imgs.length
+    ? `<div class="gal">${imgs.map(i=>`<div class="gt"><img src="${i.url}" alt="${i.caption||''}"></div>`).join('')}</div>`
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No photos yet.</div>';
+
+  // ISSUES
+  const issues = p.issues || [];
+  document.getElementById('tab-issues').innerHTML = issues.length
+    ? issues.map(iss => {
+        const stCls = iss.status==='Open'?'st-open':iss.status==='Investigating'?'st-inv':'st-res';
+        const cardCls = iss.status==='Open'?'open':iss.status==='Investigating'?'investigating':'resolved';
+        const attempts = (iss.attempts||[]).map(a => {
+          const dotCls = a.outcome==='Failed'?'fail':a.outcome==='Fixed'?'fix':'partial';
+          const chips = (a.changes||[]).map(c=>`<span class="change-chip">${c}</span>`).join('');
+          return `<div class="tli"><div class="tldot ${dotCls}"></div><div class="tld">${a.date} · ${a.outcome}</div><div class="tlt">${a.notes}</div>${chips?`<div class="attempt-changes">${chips}</div>`:'</div>'}`; 
+        }).join('');
+        return `<div class="issue-card ${cardCls}" onclick="this.classList.toggle('expanded')">
+          <div class="issue-hdr"><div><div class="issue-title">${iss.title}</div><div class="issue-meta"><span class="issue-status ${stCls}">${iss.status}</span><span class="issue-date">${iss.date||''}</span></div></div><div class="issue-arr">›</div></div>
+          <div class="issue-body"><div class="issue-desc">${iss.description||''}</div>${attempts?`<div class="ps-lbl">Attempts</div><div class="tl">${attempts}</div>`:''}</div></div>`;
+      }).join('')
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No issues logged.</div>';
+
+  // PROFILES
+  const profiles = p.print_profiles || [];
+  document.getElementById('tab-profiles').innerHTML = profiles.length
+    ? profiles.map(pr => {
+        const params = (pr.parameters||[]).map(param =>
+          `<div class="param-row"><div class="param-key">${param.key}</div><div class="param-val ${param.deviation?'dev':''}">${param.value}</div></div>`).join('');
+        return `<div class="profile-card" onclick="this.classList.toggle('expanded')">
+          <div class="profile-hdr"><div><div class="profile-name">${pr.name}</div><div class="profile-base">Base: ${pr.base_profile||'—'}</div></div><div class="issue-arr">›</div></div>
+          <div class="profile-body">${pr.notes?`<div style="font-size:12px;font-weight:300;color:var(--muted);margin-bottom:10px">${pr.notes}</div>`:''}${params?`<div class="param-grid">${params}</div>`:''}</div></div>`;
+      }).join('')
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No print profiles yet.</div>';
+
+  // COSTS TAB
+  document.getElementById('tab-costs').innerHTML = document.getElementById('tab-ov').innerHTML;
+
+  // MAKERWORLD
+  document.getElementById('tab-mw').innerHTML = p.makerworld_url
+    ? `<div class="mw-card"><div class="mw-thumb">${p.makerworld_thumb?`<img src="${p.makerworld_thumb}">`:'<span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:#444">MakerWorld model</span>'}</div><div class="mw-body"><div><div class="mw-name">${p.makerworld_title||p.name}</div><div class="mw-meta">${p.makerworld_likes?p.makerworld_likes+' likes · ':''}</div></div><a class="mw-open" href="${p.makerworld_url}" target="_blank">Open ↗</a></div></div>`
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No MakerWorld model linked.</div>';
+
+  // PAGES (embeds)
+  const pages = p.pages || [];
+  document.getElementById('tab-pgs').innerHTML = pages.length
+    ? `<div class="emb-list">${pages.map(pg=>`<div class="emb"><div class="emb-hdr"><span class="emb-nm">${pg.name}</span><span class="emb-type">HTML</span></div><iframe class="emb-frame" src="${pg.url}"></iframe></div>`).join('')}</div>`
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No pages linked yet.</div>';
+
+  // LOG
+  const log = (p.log || []).slice().reverse();
+  document.getElementById('tab-log').innerHTML = log.length
+    ? `<div class="tl">${log.map(e=>`<div class="tli"><div class="tldot ${e.type==='issue'?'fail':e.type==='fix'?'fix':''}"></div><div class="tld">${e.date}</div>${e.type==='issue'?'<div style="font-size:10px;font-weight:500;color:var(--o2);background:var(--o3);padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:4px">issue</div>':''}<div class="tlt">${e.text}</div></div>`).join('')}</div>`
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No log entries yet.</div>';
+
+  // reset tabs
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.ptc').forEach(t=>t.classList.remove('on'));
+  document.querySelector('.ptab').classList.add('on');
+  document.getElementById('tab-ov').classList.add('on');
+  document.getElementById('pw').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.ptc').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('tab-'+id).classList.add('on');
+}
+
+function closePanel() {
+  document.getElementById('pw').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+function maybeClose(e) { if(e.target===document.getElementById('pw')) closePanel(); }
+
+// ── COSTS PAGE ──
+function renderCosts() {
+  const projects = DATA.projects || [];
+  const filament = DATA.filament || [];
+  let grandTotal = 0;
+  const bars = projects.map(p => {
+    const t = projectTotal(p);
+    grandTotal += t;
+    return { name: p.name, total: t, status: p.status };
+  }).filter(x => x.total > 0).sort((a,b) => b.total - a.total);
+  const maxT = bars.length ? bars[0].total : 1;
+  document.getElementById('co-total').textContent = fmt(grandTotal);
+  document.getElementById('co-bars').innerHTML = bars.length
+    ? bars.map(b => `<div class="br"><div class="br-name">${b.name}</div><div class="br-track"><div class="br-fill ${b.status==='On Hold'?'o':''}" style="width:${Math.round(b.total/maxT*100)}%"></div></div><div class="br-val">${fmt(b.total)}</div></div>`).join('')
+    : '<div style="font-size:13px;color:var(--muted);padding:1rem 0">No cost data yet.</div>';
+  const filTbody = document.getElementById('fil-tbody');
+  if (filament.length) {
+    document.getElementById('co-empty-fil').style.display = 'none';
+    filTbody.innerHTML = filament.map(f => {
+      const ppg = f.price_per_gram || (f.price / f.weight_g);
+      const usedIn = (DATA.projects||[]).filter(p=>(p.filament_used||[]).some(fu=>fu.filament_id===f.id)).length;
+      return `<tr><td><span class="fdot2" style="background:${f.color||'#ccc'}"></span><strong>${f.brand} ${f.material} ${f.color_name||''}</strong> · ${f.weight_g}g</td><td>${fmt(f.price)}</td><td style="color:var(--g2)">€${ppg.toFixed(3).replace('.',',')}</td><td style="color:var(--muted)">${usedIn}</td></tr>`;
+    }).join('');
+  } else {
+    document.getElementById('co-empty-fil').style.display = 'block';
+    filTbody.innerHTML = '';
+  }
+}
+
+// ── LEARNING PAGE ──
+function renderLearning() {
+  const entries = DATA.learning || [];
+  const sources = DATA.sources || [];
+  document.getElementById('sb-entries-cnt').textContent = entries.length;
+  document.getElementById('sb-sources-cnt').textContent = sources.length;
+
+  // topics from all keywords
+  const topicMap = {};
+  entries.forEach(e => (e.keywords||[]).forEach(k => { topicMap[k] = (topicMap[k]||0)+1; }));
+  const colors = ['#E8F8F2:#0F6E56','#FEF3E2:#BA7517','#EDE9FE:#5B21B6','#E6F1FB:#0C447C','#FEF3C7:#92400E','#FCE7F3:#9D174D'];
+  let ci = 0;
+  document.getElementById('topic-chips').innerHTML = Object.entries(topicMap).sort((a,b)=>b[1]-a[1]).map(([k,n]) => {
+    const [bg,fg] = colors[ci++ % colors.length].split(':');
+    return `<div class="topic-chip" style="background:${bg};color:${fg}" onclick="filterTopic('${k}')">${k} <span class="tc-n">${n}</span></div>`;
+  }).join('');
+
+  // project links
+  const projLinks = [...new Set(entries.filter(e=>e.project).map(e=>e.project))];
+  document.getElementById('learn-proj-links').innerHTML = projLinks.map(proj =>
+    `<div class="sb-item" onclick="filterByProject('${proj}',this)">${proj}</div>`).join('');
+
+  renderEntries(entries);
+  renderSources(sources);
+}
+
+function renderEntries(entries) {
+  const list = document.getElementById('entry-list');
+  const empty = document.getElementById('entries-empty');
+  if (!entries.length) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  const kwColors = {'i2c':'background:#E6F1FB;color:#0C447C','petg':'background:#FEF3E2;color:#BA7517','encoder':'background:#EDE9FE;color:#5B21B6','arduino':'background:#E8F8F2;color:#0F6E56','cad':'background:#FEF3C7;color:#92400E','slicer':'background:#FCE7F3;color:#9D174D'};
+  list.innerHTML = entries.map(e => {
+    const kws = (e.keywords||[]).map(k => {
+      const s = kwColors[k.toLowerCase()] || 'background:var(--faint);color:var(--muted)';
+      return `<span class="kw" style="${s}">${k}</span>`;
+    }).join('');
+    const srcRefs = (e.source_ids||[]).map(sid => {
+      const s = (DATA.sources||[]).find(x=>x.id===sid);
+      if(!s) return '';
+      const icons = {YouTube:'▶',Link:'↗',PDF:'PDF',GitHub:'GH'};
+      return `<a class="src-ref" href="${s.url}" target="_blank"><span>${icons[s.type]||'↗'}</span>${s.title}</a>`;
+    }).join('');
+    const related = (e.related||[]).map(r=>`<span class="related-chip">${r}</span>`).join('');
+    return `<div class="entry" data-keywords="${(e.keywords||[]).join(' ')}" data-project="${e.project||''}">
+      <div class="entry-hdr" onclick="this.closest('.entry').classList.toggle('expanded')">
+        <div><div class="entry-q">${e.question}</div><div class="entry-meta">${kws}${e.project?`<span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">· ${e.project}</span>`:''}</div></div>
+        <div class="entry-arr">›</div>
+      </div>
+      <div class="entry-body">
+        <div class="entry-answer">${e.answer}</div>
+        ${srcRefs?`<div class="entry-sources-lbl">Sources</div>${srcRefs}`:''}
+        ${related?`<div class="related-lbl">Related</div>${related}`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSources(sources) {
+  const grid = document.getElementById('source-grid');
+  const empty = document.getElementById('sources-empty');
+  if (!sources.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  const icons = {YouTube:{cls:'si-yt',label:'YT'},Link:{cls:'si-link',label:'↗'},PDF:{cls:'si-pdf',label:'PDF'},GitHub:{cls:'si-gh',label:'GH'}};
+  const kwColors = {'i2c':'background:#E6F1FB;color:#0C447C','petg':'background:#FEF3E2;color:#BA7517','encoder':'background:#EDE9FE;color:#5B21B6','arduino':'background:#E8F8F2;color:#0F6E56','cad':'background:#FEF3C7;color:#92400E'};
+  grid.innerHTML = sources.map(s => {
+    const ic = icons[s.type] || icons['Link'];
+    const kws = (s.keywords||[]).map(k=>{const st=kwColors[k.toLowerCase()]||'background:var(--faint);color:var(--muted)';return `<span class="kw" style="${st}">${k}</span>`;}).join('');
+    const usedIn = (DATA.learning||[]).filter(e=>(e.source_ids||[]).includes(s.id)).length;
+    return `<a class="source-card" href="${s.url}" target="_blank">
+      <div class="source-top"><div class="source-icon ${ic.cls}">${ic.label}</div><div><div class="source-title">${s.title}</div><div class="source-url">${s.url}</div></div></div>
+      <div class="source-tags">${kws}</div>
+      <div class="source-used">${usedIn>0?`Used in ${usedIn} entr${usedIn>1?'ies':'y'}`:'Not yet linked to entries'}</div>
+    </a>`;
+  }).join('');
+}
+
+function filterEntries(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.entry').forEach(e => {
+    const text = e.textContent.toLowerCase();
+    const kw = (e.dataset.keywords||'').toLowerCase();
+    e.style.display = (text.includes(q)||kw.includes(q)) ? '' : 'none';
+  });
+}
+
+function filterTopic(topic) {
+  setLearnView('entries', document.getElementById('sb-entries'));
+  document.getElementById('entry-search').value = topic;
+  filterEntries(topic);
+}
+
+function filterByProject(proj, el) {
+  document.querySelectorAll('#learn-sidebar .sb-item').forEach(i=>i.classList.remove('on'));
+  el.classList.add('on');
+  setLearnView('entries', document.getElementById('sb-entries'));
+  document.querySelectorAll('.entry').forEach(e => {
+    e.style.display = (e.dataset.project||'').toLowerCase() === proj.toLowerCase() ? '' : 'none';
+  });
+}
+
+function setLearnView(id, el) {
+  document.querySelectorAll('#learn-sidebar .sb-item').forEach(i=>i.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.learn-view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('lv-'+id).classList.add('on');
+}
+
+// ── NAV ──
+const heroEl = document.getElementById('hero');
+const heroKana = document.getElementById('hero-kana');
+const navLogo = document.getElementById('nav-logo');
+const siteNav = document.getElementById('sitenav');
+
+window.addEventListener('scroll', () => {
+  if (!heroEl) return;
+  const hb = heroEl.getBoundingClientRect().bottom;
+  const ratio = Math.max(0, Math.min(1, (heroEl.offsetHeight - hb) / 80));
+  heroKana.style.opacity = 1 - ratio;
+  heroKana.style.transform = `translateY(${-ratio * 8}px)`;
+  if (hb < 80) { navLogo.classList.add('visible'); siteNav.classList.add('scrolled'); }
+  else { navLogo.classList.remove('visible'); siteNav.classList.remove('scrolled'); }
+}, { passive: true });
+
+function goPage(id, el) {
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  el.classList.add('on');
+  closePanel();
+  window.scrollTo(0,0);
+}
+
+loadData();
+</script>
+</body>
+</html>
