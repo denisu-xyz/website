@@ -214,9 +214,9 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
 
 <div class="tabbar">
   <div class="tab active" onclick="switchTab('plan')">Plan</div>
+  <div class="tab" onclick="switchTab('pitstop')">Pit Stop</div>
   <div class="tab" onclick="switchTab('fuel')">Fuel</div>
   <div class="tab" onclick="switchTab('drivers')">Drivers</div>
-  <div class="tab" onclick="switchTab('tyres')">Tyres</div>
   <div class="tab" onclick="switchTab('incidents')">Incidents</div>
   <div class="tab" onclick="switchTab('radio')">Radio</div>
   <div class="tab" onclick="switchTab('pitboard')">Pit Board</div>
@@ -230,17 +230,21 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
 <div id="panel-plan" class="panel active">
   <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
   <div class="sh"><div class="st">Race planner</div></div>
+
   <div class="g2" style="margin-bottom:16px">
     <div class="card">
       <div class="chd">Race &amp; lap</div>
       <div class="rrow"><span class="rl">Race duration</span><input type="range" id="p-dur" min="60" max="480" value="240" step="1" oninput="planUpdate()"><span class="rv" id="p-durV">240 min</span></div>
       <div class="rrow"><span class="rl">Lap time</span><input type="range" id="p-lap" min="460" max="660" value="510" step="1" oninput="planUpdate()"><span class="rv" id="p-lapV">8:30</span></div>
-      <div class="rrow"><span class="rl">Pit stop loss</span><input type="range" id="p-pitloss" min="60" max="180" value="90" step="5" oninput="planUpdate()"><span class="rv" id="p-pitlossV">90s</span></div>
+      <div class="rrow"><span class="rl">Pit entry/exit loss</span><input type="range" id="p-pitbase" min="15" max="90" value="30" step="1" oninput="planUpdate()"><span class="rv" id="p-pitbaseV">30s</span></div>
+      <div class="rrow"><span class="rl">Refuel rate (s/L)</span><input type="range" id="p-fuelrate" min="0.25" max="0.60" value="0.34" step="0.01" oninput="planUpdate()"><span class="rv" id="p-fuelrateV">0.34s/L</span></div>
+      <div class="rrow"><span class="rl">Tyre change time</span><input type="range" id="p-tyrechange" min="0" max="60" value="0" step="5" oninput="planUpdate()"><span class="rv" id="p-tyrechangeV">0s (no change)</span></div>
+      <div id="p-pitstopCalc" class="al al-bl" style="margin-top:4px;font-size:12px"></div>
     </div>
     <div class="card">
       <div class="chd">Fuel</div>
       <div class="rrow"><span class="rl">Tank capacity</span><input type="range" id="p-tank" min="20" max="120" value="70" step="1" oninput="planUpdate()"><span class="rv" id="p-tankV">70L</span></div>
-      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="p-fpl" min="1.0" max="8.0" value="3.2" step="0.1" oninput="planUpdate()"><span class="rv" id="p-fplV">3.2L</span></div>
+      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="p-fpl" min="1.0" max="20.0" value="3.2" step="0.1" oninput="planUpdate()"><span class="rv" id="p-fplV">3.2L</span></div>
       <div class="rrow"><span class="rl">Safety margin</span><input type="range" id="p-margin" min="0.5" max="10" value="3.0" step="0.5" oninput="planUpdate()"><span class="rv" id="p-marginV">3.0L</span></div>
     </div>
   </div>
@@ -260,12 +264,16 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
   <div id="stintSection">
     <div class="sh" style="margin-top:6px">
       <div class="st" style="font-size:20px">Stint plan</div>
-      <button class="btn btn-sm" onclick="equaliseStints()">AUTO-EQUAL STINTS</button>
+      <button class="btn btn-sm" onclick="equaliseStints()">AUTO-EQUAL</button>
     </div>
     <div class="tl" id="planTL"></div>
     <div id="tlLegend" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px"></div>
-    <div class="rule" style="margin-bottom:14px">Edit each stint's laps manually, or press <b>Auto-equal</b> to distribute evenly. Fuel load recalculates automatically.</div>
-    <div id="stintCards"></div>
+
+    <!-- Per-stint sliders rendered here -->
+    <div id="stintSliders"></div>
+
+    <div id="stintWarnings" style="margin-bottom:14px"></div>
+
     <div class="g2" style="margin-top:16px">
       <div class="card">
         <div class="chd">Pit stop schedule</div>
@@ -282,6 +290,93 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
 </div>
 
 <!-- ══ FUEL ══ -->
+<!-- ══ PIT STOP ══ -->
+<div id="panel-pitstop" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh"><div class="st">Pit stop</div><span id="pitStopStatus" style="font-family:var(--mono);font-size:13px;color:var(--text3)">Ready</span></div>
+
+  <!-- COUNTDOWN -->
+  <div class="card accent" style="margin-bottom:14px">
+    <div class="chd">Driver swap countdown</div>
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div id="cdDisplay" style="font-family:var(--display);font-size:88px;font-weight:800;line-height:1;color:var(--m-red);min-width:120px;transition:color .3s">30</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-red" id="cdBtn" onclick="startCountdown()" style="font-size:16px;padding:14px 28px">START SWAP TIMER</button>
+        <button class="btn btn-sm" onclick="resetCountdown()">Reset</button>
+        <div id="cdMsg" style="font-family:var(--mono);font-size:12px;color:var(--text3)">30 seconds from car stopping in pit stall</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSITION -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="chd">Class position</div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="m hi" style="min-width:100px"><div class="ml">Current position</div><div class="mv bl" id="posDisplay">—</div><div class="ms" id="posOfDisplay">of — cars</div></div>
+      <div class="m" style="min-width:100px"><div class="ml">Best this race</div><div class="mv gr" id="posBest">—</div><div class="ms">class</div></div>
+      <div class="m" style="min-width:100px"><div class="ml">Trend</div><div class="mv" id="posTrend">—</div><div class="ms">vs last log</div></div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+      <div><label class="flbl">Class position</label><input type="number" id="posInput" placeholder="e.g. 3" min="1" max="100" style="width:90px"></div>
+      <div><label class="flbl">Cars in class</label><input type="number" id="posTotal" placeholder="e.g. 18" min="1" max="100" style="width:90px"></div>
+      <button class="btn btn-blue btn-sm" onclick="logPosition()" style="margin-bottom:1px">Log position</button>
+    </div>
+    <div id="posHistory" style="margin-top:12px"></div>
+  </div>
+
+  <!-- DRIVER CHANGE -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="chd">Driver change</div>
+      <div id="pitDrvDisp" style="margin-bottom:12px"></div>
+      <button class="btn btn-blue" style="width:100%" onclick="rotateDriver()">CONFIRM DRIVER CHANGE</button>
+    </div>
+    <div class="card">
+      <div class="chd">Fuel</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div class="m hi" style="flex:1"><div class="ml">Remaining</div><div class="mv bl" id="pitFuelRem">—</div></div>
+        <div class="m" style="flex:1"><div class="ml">To add</div><div class="mv" id="pitFuelAdd">—</div><div class="ms">to fill</div></div>
+      </div>
+      <button class="btn btn-blue" style="width:100%;margin-bottom:8px" onclick="pitRefuel()">CONFIRM REFUEL (FULL TANK)</button>
+      <div id="pitFuelInfo" style="font-family:var(--mono);font-size:12px;color:var(--text3)"></div>
+    </div>
+  </div>
+
+  <!-- TYRES -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="chd">Tyre change</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div><label class="flbl">Compound</label><select id="pitTyreComp"><option>Dry</option><option>Wet</option><option>Intermediate</option></select></div>
+      <div><label class="flbl">Condition</label><select id="pitTyreCond"><option>New</option><option>Used (1 stint)</option><option>Used (2 stints)</option><option>Worn</option></select></div>
+      <div><label class="flbl">Notes</label><input type="text" id="pitTyreNotes" placeholder="optional"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-blue btn-sm" style="width:100%" onclick="pitLogTyres()">LOG TYRES</button></div>
+    </div>
+    <div id="pitTyreStatus" style="font-family:var(--mono);font-size:12px;color:var(--text3)">No tyre change logged this stop</div>
+  </div>
+
+  <!-- TRACK CONDITIONS -->
+  <div class="card">
+    <div class="chd">Track conditions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div><label class="flbl">Track status</label>
+        <select id="trackStatus">
+          <option>Green</option><option>Yellow</option><option>SC</option><option>FCY</option><option>Red</option>
+        </select>
+      </div>
+      <div><label class="flbl">Surface</label>
+        <select id="trackSurface">
+          <option>Dry</option><option>Damp</option><option>Wet</option><option>Mixed</option>
+        </select>
+      </div>
+      <div><label class="flbl">Track temp (°C)</label><input type="number" id="trackTemp" placeholder="e.g. 22" style="width:100%"></div>
+      <div><label class="flbl">Air temp (°C)</label><input type="number" id="airTemp" placeholder="e.g. 18" style="width:100%"></div>
+    </div>
+    <div style="margin-bottom:10px"><label class="flbl">Notes</label><input type="text" id="trackNotes" placeholder="e.g. damp at Karussell, dry on Döttinger Höhe"></div>
+    <button class="btn btn-sm" onclick="logTrackCondition()">LOG CONDITIONS</button>
+    <div id="trackCondHistory" style="margin-top:12px"></div>
+  </div>
+</div>
+
 <div id="panel-fuel" class="panel">
   <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
   <div class="sh">
@@ -436,7 +531,7 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
       </div>
     </div>
     <div class="g2" style="margin-bottom:16px">
-      <div class="card"><div class="chd">Stint plan</div><table><thead><tr><th>#</th><th>Driver</th><th>Start</th><th>End</th><th>Laps</th><th>Fuel</th><th>Tyres</th></tr></thead><tbody id="pbStintBody"></tbody></table></div>
+      <div class="card"><div class="chd">Stint plan</div><table><thead><tr><th>#</th><th>Driver</th><th>Start</th><th>End</th><th>Laps</th><th>Fuel</th><th>Notes</th></tr></thead><tbody id="pbStintBody"></tbody></table></div>
       <div class="card"><div class="chd">Pit stops</div><table><thead><tr><th>Stop</th><th>Lap</th><th>~Time</th><th>Driver in</th><th>Add fuel</th><th>Tyres?</th></tr></thead><tbody id="pbPitBody"></tbody></table></div>
     </div>
     <div class="g2" style="margin-bottom:16px">
@@ -482,10 +577,12 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
       <div class="chd">Race parameters</div>
       <div class="rrow"><span class="rl">Race duration</span><input type="range" id="s-dur" min="60" max="480" value="240" step="1" oninput="syncSetup()"><span class="rv" id="s-durV">240 min</span></div>
       <div class="rrow"><span class="rl">Lap time</span><input type="range" id="s-lap" min="460" max="660" value="510" step="1" oninput="syncSetup()"><span class="rv" id="s-lapV">8:30</span></div>
-      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="s-fpl" min="1.0" max="8.0" value="3.2" step="0.1" oninput="syncSetup()"><span class="rv" id="s-fplV">3.2L</span></div>
+      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="s-fpl" min="1.0" max="20.0" value="3.2" step="0.1" oninput="syncSetup()"><span class="rv" id="s-fplV">3.2L</span></div>
       <div class="rrow"><span class="rl">Tank capacity</span><input type="range" id="s-tank" min="20" max="120" value="70" step="1" oninput="syncSetup()"><span class="rv" id="s-tankV">70L</span></div>
       <div class="rrow"><span class="rl">Safety margin</span><input type="range" id="s-margin" min="0.5" max="10" value="3.0" step="0.5" oninput="syncSetup()"><span class="rv" id="s-marginV">3.0L</span></div>
-      <div class="rrow"><span class="rl">Pit stop loss</span><input type="range" id="s-pitloss" min="60" max="180" value="90" step="5" oninput="syncSetup()"><span class="rv" id="s-pitlossV">90s</span></div>
+      <div class="rrow"><span class="rl">Pit entry/exit loss</span><input type="range" id="s-pitloss" min="15" max="90" value="30" step="1" oninput="syncSetup()"><span class="rv" id="s-pitlossV">30s</span></div>
+      <div class="rrow"><span class="rl">Refuel rate (s/L)</span><input type="range" id="s-fuelrate" min="0.25" max="0.60" value="0.34" step="0.01" oninput="syncSetup()"><span class="rv" id="s-fuelrateV">0.34s/L</span></div>
+      <div class="rrow"><span class="rl">Tyre change time</span><input type="range" id="s-tyrechange" min="0" max="60" value="0" step="5" oninput="syncSetup()"><span class="rv" id="s-tyrechangeV">0s</span></div>
     </div>
     <div class="card"><div class="chd">Drivers</div><div id="dNameSetup" style="display:grid;gap:14px"></div></div>
   </div>
@@ -504,9 +601,9 @@ function dcb(i){const dark=document.documentElement.getAttribute('data-theme')==
 
 let L={
   clockSec:0,running:false,_int:null,
-  dur:240,lapSec:510,pitLoss:90,tank:70,fpl:3.2,margin:3.0,
+  dur:240,lapSec:510,pitBase:30,fuelRate:0.34,tyreChange:0,tank:70,fpl:3.2,margin:3.0,
   drivers:['Driver 1','Driver 2','Driver 3'],
-  stints:[],manualLaps:{}, // keyed by stint index
+  stints:[],manualLaps:{},manualDrivers:{}, // keyed by stint index
   curDrv:0,drvTime:[0,0,0],
   stintLaps:0,totalLaps:0,stintNum:1,
   fuelNow:70,
@@ -516,8 +613,11 @@ let L={
   fastLaps:[],
   // Tyre sets: [{compound, condition, lapFitted, notes}]
   tyreSets:[],
+  stintNotes:{},
+  positionLog:[],
+  trackCondLog:[],
 };
-const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets'];
+const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets','manualLaps','manualDrivers','stintNotes','positionLog','trackCondLog'];
 
 function setSS(s){const d=document.getElementById('sdot'),l=document.getElementById('slbl');if(s==='live'){d.className='sdot live';l.textContent='Live';}else if(s==='sync'){d.className='sdot sync';l.textContent='Syncing…';}else{d.className='sdot';l.textContent='Offline';}}
 function push(){setSS('sync');const p={};SYNC.forEach(k=>p[k]=L[k]);update(rr('state'),p).then(()=>setSS('live')).catch(()=>setSS('offline'));}
@@ -533,6 +633,7 @@ window.switchTab=t=>{
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${t}`));
   if(t==='pitboard')renderPitBoard();
   if(t==='debrief')renderDebrief();
+  if(t==='pitstop')renderPitStopTab();
 };
 
 window.toggleClock=()=>{
@@ -558,7 +659,7 @@ window.toggleClock=()=>{
 window.resetAll=()=>{
   if(!confirm('Reset all live race data?'))return;
   clearInterval(L._int);
-  Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false,fastLaps:[],tyreSets:[]});
+  Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false,fastLaps:[],tyreSets:[],manualLaps:{},manualDrivers:{},stintNotes:{},positionLog:[],trackCondLog:[]});
   document.getElementById('clockEl').textContent='0:00:00';
   document.getElementById('clockEl').classList.remove('go');
   document.getElementById('startBtn').textContent='START';
@@ -568,71 +669,79 @@ window.resetAll=()=>{
 
 // ── PLAN ──
 function computePlan(){
-  const{dur,lapSec,pitLoss,tank,fpl,margin,drivers,manualLaps}=L,nd=drivers.length;
-  const maxLaps=Math.floor((tank-margin)/fpl),maxStSec=maxLaps*lapSec;
+  const{dur,lapSec,pitBase,fuelRate,tyreChange,tank,fpl,margin,drivers}=L,nd=drivers.length;
+  // pitLoss is dynamic: entry/exit + refuel time based on fuel added + optional tyre change
+  // We use avgFuelAdd for planning (will vary per stint but good estimate)
+  const avgFuelAdd=Math.min(tank,Math.ceil(Math.floor((dur*60/((Math.max(2,nd)*2+1)))/lapSec)*fpl+margin));
+  const pitLoss=Math.round(pitBase+(avgFuelAdd*fuelRate)+tyreChange);
+  const manualLaps=L.manualLaps||{},manualDrivers=L.manualDrivers||{};
+  const maxLapsPerTank=Math.floor((tank-margin)/fpl);
   const raceSec=dur*60,totalLapsEst=Math.floor(raceSec/lapSec);
-  const minFuelStops=Math.max(0,Math.ceil(raceSec/maxStSec)-1),stops=Math.max(minFuelStops,nd-1),nStints=stops+1;
-  const driveSec=raceSec-stops*pitLoss,avgSec=driveSec/nStints;
+  const minFuelStops=Math.max(0,Math.ceil(raceSec/(maxLapsPerTank*lapSec))-1);
+  const stops=Math.max(minFuelStops,nd-1),nStints=stops+1;
+  const driveSec=raceSec-stops*pitLoss,avgLaps=Math.max(1,Math.floor(driveSec/nStints/lapSec));
   const fs=Math.ceil(totalLapsEst/nd/4);
   const stints=[],dLaps=new Array(nd).fill(0);let clk=0;
   for(let i=0;i<nStints;i++){
-    const di=i%nd;
-    // Use manual laps if set, else auto
-    const autoLaps=Math.floor(Math.min(avgSec,maxStSec)/lapSec);
-    const laps=manualLaps[i]!=null?Math.min(manualLaps[i],maxLaps):autoLaps;
-    const actSec=laps*lapSec,fl=Math.min(tank,Math.ceil(laps*fpl+margin)),fe=Math.max(0,fl-laps*fpl);
+    const di=manualDrivers[i]!=null?parseInt(manualDrivers[i]):i%nd;
+    const laps=manualLaps[i]!=null?parseInt(manualLaps[i]):avgLaps;
+    const actSec=laps*lapSec;
+    const fuelNeeded=laps*fpl+margin;
+    const fl=Math.min(tank,Math.ceil(fuelNeeded));
+    const fe=Math.max(0,fl-laps*fpl);
+    const overFuel=fuelNeeded>tank;
     dLaps[di]+=laps;
-    stints.push({num:i+1,di,driver:drivers[di],startSec:clk,stintSec:actSec,laps,fuelLoad:fl,fuelEnd:fe.toFixed(1),isLast:i===nStints-1});
+    stints.push({num:i+1,di,driver:drivers[di],startSec:clk,stintSec:actSec,laps,fuelLoad:fl,fuelEnd:fe.toFixed(1),overFuel,isLast:i===nStints-1,autoLaps:avgLaps,maxLapsPerTank});
     clk+=actSec+(i<nStints-1?pitLoss:0);
   }
-  return{stints,stops,minFuelStops,nStints,maxLaps,maxStSec,totalLapsEst,totalLapsCalc:stints.reduce((a,s)=>a+s.laps,0),fs,dLaps,driveSec,avgSec,totalSec:clk};
+  return{stints,stops,minFuelStops,nStints,maxLapsPerTank,totalLapsEst,totalLapsCalc:stints.reduce((a,s)=>a+s.laps,0),fs,dLaps,driveSec,avgLaps,totalSec:clk,pitLoss,avgFuelAdd};
 }
 
-window.equaliseStints=()=>{
-  L.manualLaps={};
-  planUpdate();
-};
-
-window.stintLapChanged=(i,v)=>{
-  const n=parseInt(v);
-  if(!isNaN(n)&&n>0) L.manualLaps[i]=n;
-  else delete L.manualLaps[i];
-  planUpdate();
-};
+window.equaliseStints=()=>{L.manualLaps={};L.manualDrivers={};planUpdate();};
+window.stintLapChanged=(i,v)=>{const n=parseInt(v);if(!isNaN(n)&&n>0)L.manualLaps[i]=n;else delete L.manualLaps[i];planUpdate();};
+window.stintDriverChanged=(i,v)=>{const n=parseInt(v);if(!isNaN(n))L.manualDrivers[i]=n;else delete L.manualDrivers[i];planUpdate();};
 
 function planUpdate(){
   L.dur=parseInt(document.getElementById('p-dur').value);
   L.lapSec=parseInt(document.getElementById('p-lap').value);
-  L.pitLoss=parseInt(document.getElementById('p-pitloss').value);
+  L.pitBase=parseInt(document.getElementById('p-pitbase').value);
+  L.fuelRate=parseFloat(document.getElementById('p-fuelrate').value);
+  L.tyreChange=parseInt(document.getElementById('p-tyrechange').value);
   L.tank=parseInt(document.getElementById('p-tank').value);
   L.fpl=parseFloat(document.getElementById('p-fpl').value);
   L.margin=parseFloat(document.getElementById('p-margin').value);
   document.getElementById('p-durV').textContent=L.dur+' min';
   document.getElementById('p-lapV').textContent=fmtM(L.lapSec);
-  document.getElementById('p-pitlossV').textContent=L.pitLoss+'s';
+  document.getElementById('p-pitbaseV').textContent=L.pitBase+'s';
+  document.getElementById('p-fuelrateV').textContent=L.fuelRate.toFixed(2)+'s/L';
+  const tcEl=document.getElementById('p-tyrechangeV');
+  tcEl.textContent=L.tyreChange===0?'0s (no change)':L.tyreChange+'s';
   document.getElementById('p-tankV').textContent=L.tank+'L';
   document.getElementById('p-fplV').textContent=L.fpl.toFixed(1)+'L';
   document.getElementById('p-marginV').textContent=L.margin.toFixed(1)+'L';
   const P=computePlan();L.stints=P.stints;L.fuelNow=L.tank;
-  renderStrat(P);renderStints(P);renderPitWindows();updateDelta();syncSetupSliders();
+  renderStrat(P);renderTimeline(P);renderStintSliders(P);renderPitCards(P);renderFairShare(P);renderPitWindows();updateDelta();syncSetupSliders();
 }
 window.planUpdate=planUpdate;
 
 function renderStrat(P){
   document.getElementById('stratMetrics').innerHTML=`
     <div class="m hi"><div class="ml">Pit stops needed</div><div class="mv bl">${P.stops}</div><div class="ms">fuel minimum</div></div>
-    <div class="m"><div class="ml">Max laps / tank</div><div class="mv">${P.maxLaps}</div><div class="ms">${fmtMin(P.maxStSec)} max</div></div>
+    <div class="m"><div class="ml">Max laps / tank</div><div class="mv">${P.maxLapsPerTank}</div><div class="ms">${fmtMin(P.maxLapsPerTank*L.lapSec)} max</div></div>
     <div class="m"><div class="ml">Est. total laps</div><div class="mv">${P.totalLapsEst}</div><div class="ms">at ${fmtM(L.lapSec)}/lap</div></div>
-    <div class="m"><div class="ml">Avg stint</div><div class="mv" style="font-size:22px">${fmtMin(P.avgSec)}</div><div class="ms">${Math.floor(P.avgSec/L.lapSec)} laps</div></div>
+    <div class="m"><div class="ml">Auto laps/stint</div><div class="mv" style="font-size:22px">${P.avgLaps}</div><div class="ms">${fmtMin(P.avgLaps*L.lapSec)}</div></div>
     <div class="m"><div class="ml">Fair share min</div><div class="mv">${P.fs}</div><div class="ms">laps / driver</div></div>`;
   const al=document.getElementById('stratAlert');
-  if(P.minFuelStops===0){al.className='al al-gr';al.textContent=`Full tank (${L.tank}L) covers the whole race — ${P.maxLaps} laps max, ~${P.totalLapsEst} needed. Stops for driver changes only.`;}
-  else{al.className='al al-bl';al.textContent=`${P.minFuelStops} fuel stop${P.minFuelStops>1?'s':''} required. Max range per full tank: ${P.maxLaps} laps (${fmtMin(P.maxStSec)}).`;}
-  document.getElementById('stratDesc').innerHTML=`Driving time: <b style="color:var(--text)">${fmtMin(P.driveSec)}</b> &nbsp;·&nbsp; Pit time: <b style="color:var(--text)">${fmtMin(P.stops*L.pitLoss)}</b> &nbsp;·&nbsp; Laps planned: <b style="color:var(--text)">${P.totalLapsCalc}</b>`;
+  if(P.minFuelStops===0){al.className='al al-gr';al.textContent=`Full tank (${L.tank}L) covers the whole race — ${P.maxLapsPerTank} laps max, ~${P.totalLapsEst} needed. Stops for driver changes only.`;}
+  else{al.className='al al-bl';al.textContent=`${P.minFuelStops} fuel stop${P.minFuelStops>1?'s':''} required. Max range per full tank: ${P.maxLapsPerTank} laps (${fmtMin(P.maxLapsPerTank*L.lapSec)}).`;}
+  document.getElementById('stratDesc').innerHTML=`Driving time: <b style="color:var(--text)">${fmtMin(P.driveSec)}</b> &nbsp;·&nbsp; Est. pit stop: <b style="color:var(--text)">${P.pitLoss}s</b> each &nbsp;·&nbsp; Laps planned: <b style="color:var(--text)">${P.totalLapsCalc}</b>`;
+  // Show pit stop breakdown
+  const pcEl=document.getElementById('p-pitstopCalc');
+  if(pcEl) pcEl.textContent=`Pit stop = ${L.pitBase}s entry/exit + ~${Math.round(P.avgFuelAdd*L.fuelRate)}s refuel (${P.avgFuelAdd}L @ ${L.fuelRate.toFixed(2)}s/L)${L.tyreChange>0?' + '+L.tyreChange+'s tyres':''} = ${P.pitLoss}s total`;
 }
 
-function renderStints(P){
-  const{stints,fs,dLaps}=P,tot=stints[stints.length-1].startSec+stints[stints.length-1].stintSec;
+function renderTimeline(P){
+  const{stints}=P,tot=stints[stints.length-1].startSec+stints[stints.length-1].stintSec;
   const tl=document.getElementById('planTL');tl.innerHTML='';
   stints.forEach(s=>{
     const g=document.createElement('div');g.className='tl-s';
@@ -643,38 +752,75 @@ function renderStints(P){
   document.getElementById('tlLegend').innerHTML=
     L.drivers.map((d,i)=>`<span style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;color:var(--text2)"><span style="width:13px;height:13px;border-radius:2px;background:${dc(i)};display:inline-block"></span>${d}</span>`).join('')+
     `<span style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;color:var(--text3)"><span style="width:13px;height:13px;border-radius:2px;background:var(--bg);border:2px solid var(--border2);display:inline-block"></span>Pit</span>`;
+}
 
-  // Stint cards with editable lap count
-  document.getElementById('stintCards').innerHTML=stints.map((s,idx)=>`
-    <div class="sc">
-      <div class="sc-n">${s.num}</div>
-      <div class="av" style="background:${dc(s.di)}">${ini(s.driver)}</div>
-      <div style="flex:1;min-width:130px">
-        <div class="sc-drv" style="color:${dc(s.di)}">${s.driver}</div>
-        <div class="sc-dets">
-          <div class="sc-d"><b>${fmtMin(s.startSec)}</b> start</div>
-          <div class="sc-d"><b>${fmtMin(s.startSec+s.stintSec)}</b> end</div>
-          <div class="sc-d"><b>${fmtMin(s.stintSec)}</b> long</div>
-          <div class="sc-d" style="display:flex;align-items:center;gap:5px">
-            <b>Laps:</b>
-            <input class="sc-laps-input" type="number" value="${s.laps}" min="1" max="50"
-              onchange="stintLapChanged(${idx},this.value)"
-              style="font-family:var(--mono);font-size:13px;width:58px;padding:3px 6px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text)">
-            ${L.manualLaps[idx]!=null?'<span class="badge b-am" style="font-size:9px">MANUAL</span>':'<span style="font-family:var(--mono);font-size:9px;color:var(--text3)">auto</span>'}
+function renderStintSliders(P){
+  const{stints,fs,avgLaps}=P;
+  const maxSlider=Math.max(P.maxLapsPerTank*2,60);
+  const html=stints.map((s,idx)=>{
+    const isManual=(L.manualLaps||{})[idx]!=null;
+    const isManualDrv=(L.manualDrivers||{})[idx]!=null;
+    const fuelPct=Math.min(100,(s.fuelLoad/L.tank)*100);
+    const fuelColor=s.overFuel?'var(--m-red)':fuelPct>90?'var(--amber)':'var(--m-bd)';
+    const driverOpts=L.drivers.map((d,di)=>`<option value="${di}" ${s.di===di?'selected':''}>${d}</option>`).join('');
+    return `<div class="card" style="margin-bottom:10px;border-left:4px solid ${dc(s.di)}">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="font-family:var(--display);font-size:38px;font-weight:800;color:var(--bg4);line-height:1;min-width:28px">${s.num}</div>
+        <div class="av" style="background:${dc(s.di)}">${ini(s.driver)}</div>
+        <div style="flex:1;min-width:150px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <select onchange="stintDriverChanged(${idx},this.value)" style="padding:5px 9px;font-size:14px;font-family:var(--body);background:var(--bg2);color:var(--text);border:1px solid var(--border2);border-radius:3px;width:auto">
+              ${driverOpts}
+            </select>
+            ${isManualDrv?'<span class="badge b-am" style="font-size:9px">OVERRIDE</span>':''}
           </div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text3)">${fmtMin(s.startSec)} → ${fmtMin(s.startSec+s.stintSec)} &nbsp;·&nbsp; ${fmtMin(s.stintSec)} &nbsp;·&nbsp; ${s.isLast?'<span class="badge b-gr" style="font-size:9px">FINISH</span>':'<span class="badge b-bl" style="font-size:9px">PIT STOP</span>'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:2px">FUEL LOAD</div>
+          <div style="font-family:var(--display);font-size:26px;font-weight:800;color:${fuelColor}">${s.fuelLoad}L</div>
+          <div style="font-family:var(--mono);font-size:11px;color:${s.overFuel?'var(--m-red)':'var(--text3)'}">${s.overFuel?'EXCEEDS TANK':s.fuelEnd+'L at end'}</div>
         </div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Fuel load</div>
-        <div style="font-family:var(--display);font-size:26px;font-weight:800;color:var(--m-bd)">${s.fuelLoad}L</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--text3)">${s.fuelEnd}L at end</div>
+      <div class="rrow" style="margin-bottom:8px">
+        <span class="rl" style="display:flex;align-items:center;gap:7px;font-size:12px">
+          Laps &nbsp;
+          ${isManual?'<span class="badge b-am" style="font-size:9px">MANUAL</span>':'<span style="font-family:var(--mono);font-size:9px;color:var(--text3)">auto ('+avgLaps+')</span>'}
+        </span>
+        <input type="range" min="1" max="${maxSlider}" value="${s.laps}" step="1"
+          oninput="document.getElementById('sv-${idx}').textContent=this.value+' laps ('+Math.round(this.value*${L.lapSec}/60)+'m)';stintLapChanged(${idx},parseInt(this.value))"
+          style="accent-color:${dc(s.di)}">
+        <span class="rv" id="sv-${idx}" style="min-width:120px">${s.laps} laps (${Math.round(s.laps*L.lapSec/60)}m)</span>
       </div>
-      <div>${s.isLast?'<span class="badge b-gr">FINISH</span>':'<span class="badge b-bl">PIT STOP</span>'}</div>
-    </div>`).join('');
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3);min-width:70px">Tank usage</span>
+        <div style="flex:1;background:var(--bg3);border-radius:3px;height:7px;overflow:hidden;border:1px solid var(--border)">
+          <div style="height:100%;border-radius:2px;background:${fuelColor};width:${Math.min(100,fuelPct).toFixed(0)}%;transition:width .3s"></div>
+        </div>
+        <span style="font-family:var(--mono);font-size:11px;color:${fuelColor};min-width:36px;text-align:right;font-weight:500">${Math.min(100,fuelPct).toFixed(0)}%</span>
+        ${s.laps<=P.maxLapsPerTank?'<span class="badge b-gr" style="font-size:9px">Fuel OK</span>':'<span class="badge b-rd" style="font-size:9px">Exceeds tank</span>'}
+      <div style="margin-top:10px">
+        <label style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;display:block;margin-bottom:4px">Stint notes</label>
+        <input type="text" placeholder="e.g. save fuel last 3 laps, careful T1 kerbs, watch for SC"
+          value="${(L.stintNotes||{})[idx]||''}"
+          oninput="saveStintNote(${idx},this.value)"
+          style="font-size:13px;padding:7px 10px;width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:3px;color:var(--text);font-family:var(--body)">
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('stintSliders').innerHTML=html;
+  const warns=[];
+  P.dLaps.forEach((laps,i)=>{if(laps<P.fs)warns.push(`<div class="al al-am" style="margin-bottom:6px">${L.drivers[i]}: ${laps} laps planned, needs ${P.fs} for fair share — ${P.fs-laps} short</div>`);});
+  P.stints.forEach(s=>{if(s.overFuel)warns.push(`<div class="al al-rd" style="margin-bottom:6px">Stint ${s.num} (${s.driver}): ${s.laps} laps needs ${(s.laps*L.fpl+L.margin).toFixed(1)}L — exceeds ${L.tank}L tank</div>`);});
+  document.getElementById('stintWarnings').innerHTML=warns.join('');
+}
 
-  // Pit cards
+function renderPitCards(P){
+  const{stints}=P;
   document.getElementById('pitCards').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{
-    const nx=stints[i+1],fa=(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1),lAt=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);
+    const nx=stints[i+1],fa=Math.max(0,nx.fuelLoad-parseFloat(s.fuelEnd)),lAt=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);
+    const refuelSec=Math.round(fa*L.fuelRate);
+    const stopTotal=Math.round(L.pitBase+refuelSec+(L.tyreChange||0));
     return `<div class="pc">
       <div class="pc-n">STOP ${i+1}</div>
       <div class="pc-i">
@@ -682,18 +828,25 @@ function renderStints(P){
         <div class="pc-kv"><div class="pk">~Time</div><div class="pv">${fmtMin(s.startSec+s.stintSec)}</div></div>
         <div class="pc-kv"><div class="pk">Out</div><div class="pv">${s.driver}</div></div>
         <div class="pc-kv"><div class="pk">In</div><div class="pv" style="color:${dc(nx.di)}">${nx.driver}</div></div>
-        <div class="pc-kv"><div class="pk">Add fuel</div><div class="pv" style="color:var(--m-bd)">${fa}L</div></div>
-        <div class="pc-kv"><div class="pk">Target</div><div class="pv">${nx.fuelLoad}L</div></div>
-        <div class="pc-kv"><div class="pk">Tyres</div><div class="pv" style="color:var(--text3)">Check</div></div>
-        <div class="pc-kv"><div class="pk">Swap</div><div class="pv" style="color:var(--m-red)">30s</div></div>
+        <div class="pc-kv"><div class="pk">Add fuel</div><div class="pv" style="color:var(--m-bd)">${fa.toFixed(1)}L</div></div>
+        <div class="pc-kv"><div class="pk">Refuel time</div><div class="pv">${refuelSec}s</div></div>
+        <div class="pc-kv"><div class="pk">Total stop</div><div class="pv" style="color:var(--m-red);font-weight:800">${stopTotal}s</div></div>
+        <div class="pc-kv"><div class="pk">Swap timer</div><div class="pv">30s min</div></div>
       </div>
     </div>`;
   }).join('');
-
-  // Fair share table
-  document.getElementById('fairShareTbl').innerHTML=`<table><thead><tr><th>Driver</th><th>Planned</th><th>Min</th><th>Status</th></tr></thead><tbody>${L.drivers.map((d,i)=>{const ok=dLaps[i]>=fs;return `<tr><td><span class="badge" style="background:${dcb(i)};color:${dc(i)}">${d}</span></td><td class="mo">${dLaps[i]}</td><td class="mo">${fs}</td><td>${ok?'<span class="badge b-gr">OK</span>':'<span class="badge b-rd">SHORT</span>'}</td></tr>`;}).join('')}</tbody></table>`;
 }
 
+function renderFairShare(P){
+  const{dLaps,fs}=P;
+  document.getElementById('fairShareTbl').innerHTML=`<table><thead><tr><th>Driver</th><th>Planned</th><th>Min</th><th>Status</th></tr></thead><tbody>${
+    L.drivers.map((d,i)=>{const ok=dLaps[i]>=fs;return `<tr>
+      <td><span class="badge" style="background:${dcb(i)};color:${dc(i)}">${d}</span></td>
+      <td class="mo">${dLaps[i]}</td><td class="mo">${fs}</td>
+      <td>${ok?'<span class="badge b-gr">OK</span>':'<span class="badge b-rd">SHORT — '+(fs-dLaps[i])+' more</span>'}</td>
+    </tr>`;}).join('')
+  }</tbody></table>`;
+}
 // ── FUEL + DELTA ──
 function updateFuel(){
   const rem=Math.max(0,L.fuelNow),pct=Math.min(100,(rem/L.tank)*100),lte=Math.max(0,Math.floor((rem-L.margin)/L.fpl));
@@ -929,7 +1082,7 @@ window.flashCue=i=>{const el=document.getElementById('cc-'+i);if(!el)return;el.c
 function renderPitBoard(){
   if(!L.stints.length)return;
   const P=computePlan(),stints=L.stints;
-  document.getElementById('pbStintBody').innerHTML=stints.map(s=>`<tr><td class="mo">${s.num}</td><td>${s.driver}</td><td class="mo">${fmtMin(s.startSec)}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td class="mo">${s.laps}</td><td class="mo">${s.fuelLoad}L</td><td class="mo" style="color:var(--text3)">Check</td></tr>`).join('');
+  document.getElementById('pbStintBody').innerHTML=stints.map((s,idx)=>`<tr><td class="mo">${s.num}</td><td>${s.driver}</td><td class="mo">${fmtMin(s.startSec)}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td class="mo">${s.laps}</td><td class="mo">${s.fuelLoad}L</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${(L.stintNotes||{})[idx]||'—'}</td></tr>`).join('');
   document.getElementById('pbPitBody').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{
     const nx=stints[i+1],la=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);
     return `<tr><td class="mo">${i+1}</td><td class="mo">${la}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td>${nx.driver}</td><td class="mo">${(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1)}L</td><td class="mo" style="color:var(--text3)">□ Changed</td></tr>`;
@@ -1007,6 +1160,7 @@ function renderDebrief(){
     if(L.tyreSets.length){txt+=`\nTYRE SETS USED\n`;L.tyreSets.forEach(t=>{txt+=`Lap ${t.lap}: ${t.compound} (${t.condition})${t.notes?' — '+t.notes:''}\n`;});}
     txt+=`\nINCIDENTS\n`;
     L.drivers.forEach((d,i)=>{const dinc=types.reduce((a,t)=>a+L.inc[t][i],0);if(dinc>0){txt+=`${d}: ${labels.map((l,li)=>L.inc[types[li]][i]>0?`${L.inc[types[li]][i]}x ${l}`:'').filter(Boolean).join(', ')}\n`;}});
+    txt+=debriefExtra();
     expEl.textContent=txt;
   }
 }
@@ -1024,7 +1178,7 @@ function syncSetupSliders(){
   const st=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   sv('s-dur',L.dur);st('s-durV',L.dur+' min');sv('s-lap',L.lapSec);st('s-lapV',fmtM(L.lapSec));
   sv('s-fpl',L.fpl);st('s-fplV',L.fpl.toFixed(1)+'L');sv('s-tank',L.tank);st('s-tankV',L.tank+'L');
-  sv('s-margin',L.margin);st('s-marginV',L.margin.toFixed(1)+'L');sv('s-pitloss',L.pitLoss);st('s-pitlossV',L.pitLoss+'s');
+  sv('s-margin',L.margin);st('s-marginV',L.margin.toFixed(1)+'L');sv('s-pitloss',L.pitBase||30);st('s-pitlossV',(L.pitBase||30)+'s');sv('s-fuelrate',L.fuelRate||0.34);st('s-fuelrateV',(L.fuelRate||0.34).toFixed(2)+'s/L');sv('s-tyrechange',L.tyreChange||0);st('s-tyrechangeV',(L.tyreChange||0)+'s');
 }
 window.syncSetup=()=>{
   L.dur=parseInt(document.getElementById('s-dur').value);
@@ -1032,7 +1186,9 @@ window.syncSetup=()=>{
   L.fpl=parseFloat(document.getElementById('s-fpl').value);
   L.tank=parseInt(document.getElementById('s-tank').value);
   L.margin=parseFloat(document.getElementById('s-margin').value);
-  L.pitLoss=parseInt(document.getElementById('s-pitloss').value);
+  L.pitBase=parseInt(document.getElementById('s-pitloss').value);
+  L.fuelRate=parseFloat(document.getElementById('s-fuelrate').value);
+  L.tyreChange=parseInt(document.getElementById('s-tyrechange').value);
   syncSetupSliders();planUpdate();
 };
 
@@ -1047,8 +1203,165 @@ window.toggleTheme=()=>{applyTheme(document.documentElement.getAttribute('data-t
 try{if(localStorage.getItem('nec-theme')==='dark')applyTheme(true);}catch(e){}
 
 // ── RENDER ──
+// ── PIT STOP TAB ──
+let _cdInt=null,_cdSec=30,_cdRunning=false;
+window.startCountdown=()=>{
+  if(_cdRunning){clearInterval(_cdInt);_cdRunning=false;document.getElementById('cdBtn').textContent='START SWAP TIMER';document.getElementById('cdBtn').className='btn btn-red';document.getElementById('cdMsg').textContent='30 seconds from car stopping in pit stall';return;}
+  _cdSec=30;_cdRunning=true;
+  document.getElementById('cdBtn').textContent='STOP';
+  document.getElementById('cdBtn').className='btn btn-sm';
+  const disp=document.getElementById('cdDisplay'),msg=document.getElementById('cdMsg');
+  disp.textContent=_cdSec;disp.style.color='var(--m-red)';
+  _cdInt=setInterval(()=>{
+    _cdSec--;
+    disp.textContent=_cdSec;
+    if(_cdSec<=10){disp.style.color='var(--m-red)';}
+    if(_cdSec<=0){
+      clearInterval(_cdInt);_cdRunning=false;
+      disp.textContent='GO';disp.style.color='var(--green)';
+      msg.textContent='Timer complete — driver can leave!';
+      document.getElementById('cdBtn').textContent='START SWAP TIMER';
+      document.getElementById('cdBtn').className='btn btn-red';
+    } else {
+      msg.textContent=`${_cdSec}s remaining — hold position`;
+    }
+  },1000);
+};
+window.resetCountdown=()=>{
+  clearInterval(_cdInt);_cdRunning=false;_cdSec=30;
+  const disp=document.getElementById('cdDisplay');
+  if(disp){disp.textContent='30';disp.style.color='var(--m-red)';}
+  document.getElementById('cdBtn').textContent='START SWAP TIMER';
+  document.getElementById('cdBtn').className='btn btn-red';
+  document.getElementById('cdMsg').textContent='30 seconds from car stopping in pit stall';
+};
+
+function renderPitStopTab(){
+  // Current + next driver
+  const i=L.curDrv,next=(L.curDrv+1)%L.drivers.length;
+  const pdd=document.getElementById('pitDrvDisp');
+  if(pdd) pdd.innerHTML=`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div style="text-align:center"><div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px">OUT</div><div class="av" style="background:${dc(i)};width:48px;height:48px;font-size:17px;margin:0 auto">${ini(L.drivers[i])}</div><div style="font-family:var(--display);font-size:16px;font-weight:800;margin-top:6px;color:${dc(i)}">${L.drivers[i]}</div></div>
+    <div style="font-family:var(--display);font-size:30px;font-weight:800;color:var(--text3)">→</div>
+    <div style="text-align:center"><div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px">IN</div><div class="av" style="background:${dc(next)};width:48px;height:48px;font-size:17px;margin:0 auto">${ini(L.drivers[next])}</div><div style="font-family:var(--display);font-size:16px;font-weight:800;margin-top:6px;color:${dc(next)}">${L.drivers[next]}</div></div>
+  </div>`;
+  // Fuel
+  const rem=Math.max(0,L.fuelNow),toAdd=Math.max(0,L.tank-rem);
+  const refuelSec=Math.round(toAdd*(L.fuelRate||0.34));
+  const pfi=document.getElementById('pitFuelInfo');
+  if(document.getElementById('pitFuelRem')) document.getElementById('pitFuelRem').textContent=rem.toFixed(1)+'L';
+  if(document.getElementById('pitFuelAdd')) document.getElementById('pitFuelAdd').textContent=toAdd.toFixed(1)+'L';
+  if(pfi) pfi.textContent=`Refuel: ~${refuelSec}s at ${(L.fuelRate||0.34).toFixed(2)}s/L · Total stop est. ${Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0))}s`;
+  // Position
+  renderPositionDisplay();
+  // Track conditions history
+  renderTrackCondHistory();
+}
+
+// ── POSITION TRACKER ──
+window.logPosition=()=>{
+  const pos=parseInt(document.getElementById('posInput').value);
+  const tot=parseInt(document.getElementById('posTotal').value);
+  if(isNaN(pos)||pos<1) return;
+  L.positionLog.push({pos,tot:isNaN(tot)?null:tot,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum});
+  document.getElementById('posInput').value='';
+  renderPositionDisplay();push();
+};
+function renderPositionDisplay(){
+  const log=L.positionLog;
+  const pd=document.getElementById('posDisplay'),pb=document.getElementById('posBest'),pt=document.getElementById('posTrend'),pod=document.getElementById('posOfDisplay');
+  if(!log.length){if(pd)pd.textContent='—';if(pb)pb.textContent='—';if(pt)pt.textContent='—';if(pod)pod.textContent='of — cars';}
+  else{
+    const last=log[log.length-1];
+    if(pd){pd.textContent='P'+last.pos;pd.className='mv bl';}
+    if(pod) pod.textContent=last.tot?'of '+last.tot+' cars':'';
+    const best=log.reduce((a,b)=>b.pos<a.pos?b:a);
+    if(pb){pb.textContent='P'+best.pos;pb.className='mv gr';}
+    if(log.length>=2){
+      const prev=log[log.length-2],delta=prev.pos-last.pos;
+      if(pt){pt.textContent=delta>0?'+'+delta:delta===0?'—':delta;pt.className='mv '+(delta>0?'gr':delta<0?'rd':'am');}
+    } else {if(pt){pt.textContent='—';pt.className='mv';}}
+  }
+  const ph=document.getElementById('posHistory');
+  if(!ph) return;
+  if(!log.length){ph.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--text3)">No positions logged yet.</div>';return;}
+  ph.innerHTML=`<table><thead><tr><th>Lap</th><th>Time</th><th>Position</th><th>Delta</th></tr></thead><tbody>${
+    [...log].reverse().map((p,ri)=>{
+      const idx=log.length-1-ri;
+      const delta=idx>0?log[idx-1].pos-p.pos:null;
+      const dc2=delta===null?'var(--text3)':delta>0?'var(--green)':delta<0?'var(--m-red)':'var(--text3)';
+      return `<tr><td class="mo">${p.lap}</td><td class="mo">${fmtH(p.raceTimeSec)}</td><td style="font-family:var(--display);font-size:17px;font-weight:800">P${p.pos}${p.tot?' / '+p.tot:''}</td><td style="font-family:var(--display);font-size:17px;font-weight:800;color:${dc2}">${delta===null?'—':delta>0?'+'+delta:delta}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+
+// ── TRACK CONDITIONS ──
+window.logTrackCondition=()=>{
+  const status=document.getElementById('trackStatus').value;
+  const surface=document.getElementById('trackSurface').value;
+  const trackTemp=document.getElementById('trackTemp').value;
+  const airTemp=document.getElementById('airTemp').value;
+  const notes=document.getElementById('trackNotes').value;
+  L.trackCondLog.push({status,surface,trackTemp:trackTemp||'—',airTemp:airTemp||'—',notes,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum});
+  document.getElementById('trackNotes').value='';
+  renderTrackCondHistory();push();
+};
+function renderTrackCondHistory(){
+  const el=document.getElementById('trackCondHistory');if(!el)return;
+  if(!L.trackCondLog.length){el.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--text3)">No conditions logged yet.</div>';return;}
+  const statusColor={Green:'var(--green)',Yellow:'var(--amber)',SC:'var(--amber)',FCY:'var(--amber)',Red:'var(--m-red)'};
+  el.innerHTML=`<table><thead><tr><th>Lap</th><th>Status</th><th>Surface</th><th>Track °C</th><th>Air °C</th><th>Notes</th></tr></thead><tbody>${
+    [...L.trackCondLog].reverse().map(t=>`<tr>
+      <td class="mo">${t.lap}</td>
+      <td style="font-weight:700;color:${statusColor[t.status]||'var(--text)'}">${t.status}</td>
+      <td style="font-family:var(--mono);font-size:13px">${t.surface}</td>
+      <td class="mo">${t.trackTemp}°</td>
+      <td class="mo">${t.airTemp}°</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${t.notes||'—'}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+
+// ── TYRE LOG (pit stop) ──
+window.pitLogTyres=()=>{
+  const compound=document.getElementById('pitTyreComp').value;
+  const condition=document.getElementById('pitTyreCond').value;
+  const notes=document.getElementById('pitTyreNotes').value;
+  L.tyreSets.push({compound,condition,lap:L.totalLaps,notes,stintNum:L.stintNum,driver:L.drivers[L.curDrv]});
+  document.getElementById('pitTyreNotes').value='';
+  const el=document.getElementById('pitTyreStatus');
+  if(el) el.innerHTML=`<span class="badge b-gr">Logged: ${compound} (${condition}) at lap ${L.totalLaps}</span>`;
+  renderTyrePanel();push();
+};
+
+// ── STINT NOTES ──
+window.saveStintNote=(idx,val)=>{
+  if(!L.stintNotes) L.stintNotes={};
+  L.stintNotes[idx]=val;
+  push();
+};
+
+// ── DEBRIEF: include track conditions + positions ──
+function debriefExtra(){
+  let txt='';
+  if(L.positionLog&&L.positionLog.length){
+    txt+='\nPOSITION LOG\n';
+    L.positionLog.forEach(p=>txt+='Lap '+p.lap+': P'+p.pos+(p.tot?'/'+p.tot:'')+'\n');
+  }
+  if(L.trackCondLog&&L.trackCondLog.length){
+    txt+='\nTRACK CONDITIONS\n';
+    L.trackCondLog.forEach(t=>txt+='Lap '+t.lap+': '+t.status+' · '+t.surface+' · Track '+t.trackTemp+'°C · Air '+t.airTemp+'°C'+(t.notes?' · '+t.notes:'')+'\n');
+  }
+  if(L.stintNotes&&Object.keys(L.stintNotes).length){
+    txt+='\nSTINT NOTES\n';
+    Object.entries(L.stintNotes).forEach(([i,n])=>{if(n)txt+='Stint '+(parseInt(i)+1)+': '+n+'\n';});
+  }
+  return txt;
+}
+
 function renderLive(){
   document.getElementById('clockEl').textContent=fmtH(L.clockSec);
+  renderPitStopTab();
   updateFuel();renderDrvPanel();renderIncPanel();renderPitWindows();renderTyrePanel();renderFastLapTable();
 }
 function renderAll(){buildDriverGrids();planUpdate();renderLive();renderCues();}
