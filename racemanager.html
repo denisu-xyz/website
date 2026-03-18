@@ -335,9 +335,17 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
       <div class="chd">Fuel</div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div class="m hi" style="flex:1"><div class="ml">Remaining</div><div class="mv bl" id="pitFuelRem">—</div></div>
-        <div class="m" style="flex:1"><div class="ml">To add</div><div class="mv" id="pitFuelAdd">—</div><div class="ms">to fill</div></div>
+        <div class="m" style="flex:1"><div class="ml">To add (plan)</div><div class="mv bl" id="pitFuelAdd">—</div><div class="ms">from plan</div></div>
+        <div class="m" style="flex:1"><div class="mv" id="pitFuelTime">—</div><div class="ms" id="pitFuelTimeLbl">refuel time</div></div>
       </div>
-      <button class="btn btn-blue" style="width:100%;margin-bottom:8px" onclick="pitRefuel()">CONFIRM REFUEL (FULL TANK)</button>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px">
+          <label class="flbl">Litres to add</label>
+          <input type="number" id="pitFuelLitres" placeholder="auto = fill to plan" style="width:100%" min="0" max="120" oninput="updatePitFuelCalc()">
+        </div>
+        <button class="btn btn-blue" onclick="pitRefuelCustom()" style="flex-shrink:0">CONFIRM REFUEL</button>
+        <button class="btn btn-sm" onclick="pitRefuel()" style="flex-shrink:0">Full tank</button>
+      </div>
       <div id="pitFuelInfo" style="font-family:var(--mono);font-size:12px;color:var(--text3)"></div>
     </div>
   </div>
@@ -532,7 +540,7 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
     </div>
     <div class="g2" style="margin-bottom:16px">
       <div class="card"><div class="chd">Stint plan</div><table><thead><tr><th>#</th><th>Driver</th><th>Start</th><th>End</th><th>Laps</th><th>Fuel</th><th>Notes</th></tr></thead><tbody id="pbStintBody"></tbody></table></div>
-      <div class="card"><div class="chd">Pit stops</div><table><thead><tr><th>Stop</th><th>Lap</th><th>~Time</th><th>Driver in</th><th>Add fuel</th><th>Tyres?</th></tr></thead><tbody id="pbPitBody"></tbody></table></div>
+      <div class="card"><div class="chd">Pit stops</div><table><thead><tr><th>Stop</th><th>Lap</th><th>~Time</th><th>Driver in</th><th>Add fuel</th><th>Refuel time</th><th>Total stop</th></tr></thead><tbody id="pbPitBody"></tbody></table></div>
     </div>
     <div class="g2" style="margin-bottom:16px">
       <div class="card"><div class="chd">Fair share minimums</div><div id="pbFairShare" style="font-family:var(--mono);font-size:14px;line-height:2.6;color:var(--text)"></div></div>
@@ -562,6 +570,7 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
   </div>
   <div class="card" style="margin-bottom:14px"><div class="chd">Stints &amp; fastest laps</div><div id="debriefStints"></div></div>
   <div class="card" style="margin-bottom:14px"><div class="chd">Incidents</div><div id="debriefInc"></div></div>
+  <div class="card" style="margin-bottom:14px"><div class="chd">Event log — chronological</div><div id="debriefEvents"></div></div>
   <div class="card">
     <div class="chd">Export text (for Discord / notes)</div>
     <div id="debriefExport" class="debrief-copy"></div>
@@ -599,6 +608,19 @@ const db=getDatabase(FB),rr=k=>ref(db,`race1/${k}`);
 function dc(i){const dark=document.documentElement.getAttribute('data-theme')==='dark';return(dark?['#6B8FD4','#88AAEE','#FF4D4D']:['#1C2D6E','#3659A2','#E2001A'])[i];}
 function dcb(i){const dark=document.documentElement.getAttribute('data-theme')==='dark';return(dark?['rgba(107,143,212,.2)','rgba(136,170,238,.2)','rgba(255,77,77,.2)']:['rgba(28,45,110,.1)','rgba(54,89,162,.1)','rgba(226,0,26,.1)'])[i];}
 
+// ── EVENT LOG ──
+function lisbon(){
+  // UTC+0 in winter, UTC+1 in summer (WET/WEST)
+  const now=new Date();
+  return now.toLocaleTimeString('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function logEvent(type,data){
+  if(!L.eventLog) L.eventLog=[];
+  L.eventLog.push({type,...data,raceTimeSec:L.clockSec,realTime:lisbon(),ts:Date.now()});
+  // Keep last 200 events
+  if(L.eventLog.length>200) L.eventLog=L.eventLog.slice(-200);
+}
+
 let L={
   clockSec:0,running:false,_int:null,
   dur:240,lapSec:510,pitBase:30,fuelRate:0.34,tyreChange:0,tank:70,fpl:3.2,margin:3.0,
@@ -616,8 +638,9 @@ let L={
   stintNotes:{},
   positionLog:[],
   trackCondLog:[],
+  eventLog:[],
 };
-const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets','manualLaps','manualDrivers','stintNotes','positionLog','trackCondLog'];
+const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets','manualLaps','manualDrivers','stintNotes','positionLog','trackCondLog','eventLog'];
 
 function setSS(s){const d=document.getElementById('sdot'),l=document.getElementById('slbl');if(s==='live'){d.className='sdot live';l.textContent='Live';}else if(s==='sync'){d.className='sdot sync';l.textContent='Syncing…';}else{d.className='sdot';l.textContent='Offline';}}
 function push(){setSS('sync');const p={};SYNC.forEach(k=>p[k]=L[k]);update(rr('state'),p).then(()=>setSS('live')).catch(()=>setSS('offline'));}
@@ -627,6 +650,17 @@ const fmtH=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floo
 const fmtM=s=>{const m=Math.floor(s/60),sc=Math.floor(s%60);return `${m}:${sc.toString().padStart(2,'0')}`;};
 const fmtMin=s=>{const h=Math.floor(s/3600),m=Math.round((s%3600)/60);return h>0?`${h}h${m.toString().padStart(2,'0')}m`:`${m}m`;};
 const ini=n=>(n||'?').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';
+// Timestamp: Lisbon wall time + race time
+function logEvent(type, detail){
+  const t=ts();
+  if(!L.eventLog) L.eventLog=[];
+  L.eventLog.push({type, detail, wall:t.wall, raceFmt:t.raceFmt, race:t.race, lap:t.lap, stintNum:L.stintNum});
+}
+function ts(){
+  const now=new Date();
+  const lisbon=now.toLocaleTimeString('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  return {wall:lisbon, race:L.clockSec, raceFmt:fmtH(L.clockSec), lap:L.totalLaps};
+}
 
 window.switchTab=t=>{
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.onclick?.toString().includes(`'${t}'`)));
@@ -659,7 +693,7 @@ window.toggleClock=()=>{
 window.resetAll=()=>{
   if(!confirm('Reset all live race data?'))return;
   clearInterval(L._int);
-  Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false,fastLaps:[],tyreSets:[],manualLaps:{},manualDrivers:{},stintNotes:{},positionLog:[],trackCondLog:[]});
+  Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false,fastLaps:[],tyreSets:[],manualLaps:{},manualDrivers:{},stintNotes:{},positionLog:[],trackCondLog:[],eventLog:[]});
   document.getElementById('clockEl').textContent='0:00:00';
   document.getElementById('clockEl').classList.remove('go');
   document.getElementById('startBtn').textContent='START';
@@ -670,10 +704,9 @@ window.resetAll=()=>{
 // ── PLAN ──
 function computePlan(){
   const{dur,lapSec,pitBase,fuelRate,tyreChange,tank,fpl,margin,drivers}=L,nd=drivers.length;
-  // pitLoss is dynamic: entry/exit + refuel time based on fuel added + optional tyre change
-  // We use avgFuelAdd for planning (will vary per stint but good estimate)
-  const avgFuelAdd=Math.min(tank,Math.ceil(Math.floor((dur*60/((Math.max(2,nd)*2+1)))/lapSec)*fpl+margin));
-  const pitLoss=Math.round(pitBase+(avgFuelAdd*fuelRate)+tyreChange);
+  // pitLoss is computed per-stop after stints are built (uses actual fuelAdd).
+  // For initial scheduling we use a placeholder; refined after stint loop.
+  const pitLoss=Math.round(pitBase+(Math.min(tank,tank*0.6)*fuelRate)+tyreChange); // rough estimate for scheduling
   const manualLaps=L.manualLaps||{},manualDrivers=L.manualDrivers||{};
   const maxLapsPerTank=Math.floor((tank-margin)/fpl);
   const raceSec=dur*60,totalLapsEst=Math.floor(raceSec/lapSec);
@@ -694,7 +727,17 @@ function computePlan(){
     stints.push({num:i+1,di,driver:drivers[di],startSec:clk,stintSec:actSec,laps,fuelLoad:fl,fuelEnd:fe.toFixed(1),overFuel,isLast:i===nStints-1,autoLaps:avgLaps,maxLapsPerTank});
     clk+=actSec+(i<nStints-1?pitLoss:0);
   }
-  return{stints,stops,minFuelStops,nStints,maxLapsPerTank,totalLapsEst,totalLapsCalc:stints.reduce((a,s)=>a+s.laps,0),fs,dLaps,driveSec,avgLaps,totalSec:clk,pitLoss,avgFuelAdd};
+  // Compute per-stop actual fuel add and pit time
+  const pitStops=stints.filter(s=>!s.isLast).map((s,i)=>{
+    const nx=stints[i+1];
+    const fuelAdd=Math.max(0,nx.fuelLoad-parseFloat(s.fuelEnd));
+    const refuelSec=Math.round(fuelAdd*fuelRate);
+    const stopTime=Math.round(pitBase+refuelSec+tyreChange);
+    return{stopNum:i+1,fuelAdd:fuelAdd.toFixed(1),refuelSec,stopTime,lap:stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0)};
+  });
+  // Refined avg pit loss using actual per-stop times
+  const avgPitLoss=pitStops.length?Math.round(pitStops.reduce((a,p)=>a+p.stopTime,0)/pitStops.length):pitLoss;
+  return{stints,stops,minFuelStops,nStints,maxLapsPerTank,totalLapsEst,totalLapsCalc:stints.reduce((a,s)=>a+s.laps,0),fs,dLaps,driveSec,avgLaps,totalSec:clk,pitLoss:avgPitLoss,pitStops};
 }
 
 window.equaliseStints=()=>{L.manualLaps={};L.manualDrivers={};planUpdate();};
@@ -737,7 +780,10 @@ function renderStrat(P){
   document.getElementById('stratDesc').innerHTML=`Driving time: <b style="color:var(--text)">${fmtMin(P.driveSec)}</b> &nbsp;·&nbsp; Est. pit stop: <b style="color:var(--text)">${P.pitLoss}s</b> each &nbsp;·&nbsp; Laps planned: <b style="color:var(--text)">${P.totalLapsCalc}</b>`;
   // Show pit stop breakdown
   const pcEl=document.getElementById('p-pitstopCalc');
-  if(pcEl) pcEl.textContent=`Pit stop = ${L.pitBase}s entry/exit + ~${Math.round(P.avgFuelAdd*L.fuelRate)}s refuel (${P.avgFuelAdd}L @ ${L.fuelRate.toFixed(2)}s/L)${L.tyreChange>0?' + '+L.tyreChange+'s tyres':''} = ${P.pitLoss}s total`;
+  if(pcEl&&P.pitStops&&P.pitStops.length){
+    const lines=P.pitStops.map(p=>`Stop ${p.stopNum}: +${p.fuelAdd}L → ${p.refuelSec}s refuel + ${L.pitBase}s base${L.tyreChange>0?' + '+L.tyreChange+'s tyres':''} = <b>${p.stopTime}s</b>`).join(' &nbsp;·&nbsp; ');
+    pcEl.innerHTML=lines;
+  }
 }
 
 function renderTimeline(P){
@@ -747,7 +793,7 @@ function renderTimeline(P){
     const g=document.createElement('div');g.className='tl-s';
     g.style.cssText=`left:${((s.startSec/tot)*100).toFixed(1)}%;width:${((s.stintSec/tot)*100).toFixed(1)}%;background:${dc(s.di)}`;
     g.textContent=s.driver.split(' ')[0];tl.appendChild(g);
-    if(!s.isLast){const pt=document.createElement('div');pt.className='tl-p';pt.style.cssText=`left:${(((s.startSec+s.stintSec)/tot)*100).toFixed(1)}%;width:${Math.max((L.pitLoss/tot)*100,.5).toFixed(1)}%`;tl.appendChild(pt);}
+    if(!s.isLast){const pt=document.createElement('div');pt.className='tl-p';const pitW=P.pitLoss||90;pt.style.cssText=`left:${(((s.startSec+s.stintSec)/tot)*100).toFixed(1)}%;width:${Math.max((pitW/tot)*100,.5).toFixed(1)}%`;tl.appendChild(pt);}
   });
   document.getElementById('tlLegend').innerHTML=
     L.drivers.map((d,i)=>`<span style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;color:var(--text2)"><span style="width:13px;height:13px;border-radius:2px;background:${dc(i)};display:inline-block"></span>${d}</span>`).join('')+
@@ -816,21 +862,19 @@ function renderStintSliders(P){
 }
 
 function renderPitCards(P){
-  const{stints}=P;
+  const{stints,pitStops}=P;
   document.getElementById('pitCards').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{
-    const nx=stints[i+1],fa=Math.max(0,nx.fuelLoad-parseFloat(s.fuelEnd)),lAt=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);
-    const refuelSec=Math.round(fa*L.fuelRate);
-    const stopTotal=Math.round(L.pitBase+refuelSec+(L.tyreChange||0));
+    const nx=stints[i+1],ps=pitStops[i];
     return `<div class="pc">
       <div class="pc-n">STOP ${i+1}</div>
       <div class="pc-i">
-        <div class="pc-kv"><div class="pk">Lap</div><div class="pv">${lAt}</div></div>
+        <div class="pc-kv"><div class="pk">Lap</div><div class="pv">${ps.lap}</div></div>
         <div class="pc-kv"><div class="pk">~Time</div><div class="pv">${fmtMin(s.startSec+s.stintSec)}</div></div>
         <div class="pc-kv"><div class="pk">Out</div><div class="pv">${s.driver}</div></div>
         <div class="pc-kv"><div class="pk">In</div><div class="pv" style="color:${dc(nx.di)}">${nx.driver}</div></div>
-        <div class="pc-kv"><div class="pk">Add fuel</div><div class="pv" style="color:var(--m-bd)">${fa.toFixed(1)}L</div></div>
-        <div class="pc-kv"><div class="pk">Refuel time</div><div class="pv">${refuelSec}s</div></div>
-        <div class="pc-kv"><div class="pk">Total stop</div><div class="pv" style="color:var(--m-red);font-weight:800">${stopTotal}s</div></div>
+        <div class="pc-kv"><div class="pk">Add fuel</div><div class="pv" style="color:var(--m-bd)">${ps.fuelAdd}L</div></div>
+        <div class="pc-kv"><div class="pk">Refuel time</div><div class="pv">${ps.refuelSec}s</div></div>
+        <div class="pc-kv"><div class="pk">Total stop</div><div class="pv" style="font-weight:800;color:var(--m-red)">${ps.stopTime}s</div></div>
         <div class="pc-kv"><div class="pk">Swap timer</div><div class="pv">30s min</div></div>
       </div>
     </div>`;
@@ -890,10 +934,82 @@ function updateDelta(){
   else{dEl.className='delta even';dEl.textContent='0';mEl.textContent='Exactly on plan';}
 }
 
-window.lapDone=()=>{L.stintLaps++;L.totalLaps++;L.fuelNow=Math.max(0,L.fuelNow-L.fpl);updateFuel();renderDrvPanel();push();};
-window.pitRefuel=()=>{L.stintLaps=0;L.fuelNow=L.tank;updateFuel();push();};
-window.setFuelManual=()=>{const v=parseFloat(document.getElementById('manFuel').value);if(!isNaN(v)&&v>=0){L.fuelNow=v;updateFuel();push();}};
-window.setCurrentLap=()=>{const v=parseInt(document.getElementById('curLap').value);if(!isNaN(v)&&v>=0){L.totalLaps=v;updateFuel();push();}};
+window.lapDone=()=>{
+  L.stintLaps++;
+  L.totalLaps++;
+  L.fuelNow=Math.max(0,parseFloat((L.fuelNow-L.fpl).toFixed(2)));
+  // log every 5th lap to avoid spamming the event log
+  if(L.totalLaps%5===0) logEvent('LAP_MILESTONE',{lap:L.totalLaps,fuelNow:parseFloat(L.fuelNow.toFixed(1)),driver:L.drivers[L.curDrv]});
+  updateFuel();renderDrvPanel();push();
+};
+window.pitRefuel=()=>{
+  const added=Math.max(0,L.tank-L.fuelNow);
+  L.stintLaps=0;
+  L.fuelNow=L.tank;
+  logEvent('REFUEL',{litresAdded:parseFloat(added.toFixed(1)),totalFuel:L.tank,lap:L.totalLaps,stintNum:L.stintNum});
+  updateFuel();renderPitStopTab();push();
+};
+window.pitRefuelCustom=()=>{
+  const inputEl=document.getElementById('pitFuelLitres');
+  const v=parseFloat(inputEl.value);
+  let added,newFuel;
+  if(isNaN(v)||v<=0){
+    // No input: fill to planned target for next stint
+    const nextStint=L.stints[L.stintNum]; // stintNum already incremented after driver change
+    const target=nextStint?nextStint.fuelLoad:L.tank;
+    added=Math.max(0,parseFloat((target-L.fuelNow).toFixed(1)));
+    newFuel=Math.min(L.tank,L.fuelNow+added);
+  } else {
+    added=Math.min(v,L.tank-L.fuelNow);
+    newFuel=Math.min(L.tank,L.fuelNow+added);
+  }
+  L.fuelNow=parseFloat(newFuel.toFixed(1));
+  L.stintLaps=0;
+  logEvent('REFUEL',{litresAdded:parseFloat(added.toFixed(1)),totalFuel:parseFloat(L.fuelNow.toFixed(1)),lap:L.totalLaps,stintNum:L.stintNum});
+  if(inputEl) inputEl.value='';
+  updateFuel();renderPitStopTab();push();
+};
+window.updatePitFuelCalc=()=>{
+  const v=parseFloat(document.getElementById('pitFuelLitres').value);
+  const fuelRate=L.fuelRate||0.34;
+  const pitFuelInfo=document.getElementById('pitFuelInfo');
+  const pitFuelTime=document.getElementById('pitFuelTime');
+  if(!isNaN(v)&&v>0){
+    const refuelSec=Math.round(v*fuelRate);
+    const total=Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0));
+    if(pitFuelInfo) pitFuelInfo.textContent=`${v.toFixed(1)}L × ${fuelRate.toFixed(2)}s/L = ${refuelSec}s refuel + ${L.pitBase||30}s base${(L.tyreChange||0)>0?' + '+L.tyreChange+'s tyres':''} = ${total}s total stop`;
+    if(pitFuelTime){pitFuelTime.textContent=refuelSec+'s';pitFuelTime.className='mv am';}
+  } else {
+    // show planned values when cleared
+    const rem=Math.max(0,L.fuelNow);
+    const nextStint=L.stints[L.stintNum];
+    const target=nextStint?nextStint.fuelLoad:L.tank;
+    const plannedAdd=Math.max(0,target-rem);
+    const refuelSec=Math.round(plannedAdd*(fuelRate));
+    const total=Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0));
+    if(pitFuelInfo) pitFuelInfo.textContent=`Plan: +${plannedAdd.toFixed(1)}L → ${refuelSec}s refuel + ${L.pitBase||30}s base = ${total}s total. Override with custom litres above.`;
+    if(pitFuelTime){pitFuelTime.textContent=refuelSec+'s';pitFuelTime.className='mv';}
+  }
+};
+window.setFuelManual=()=>{
+  const v=parseFloat(document.getElementById('manFuel').value);
+  if(!isNaN(v)&&v>=0&&v<=L.tank){
+    const prev=L.fuelNow;
+    L.fuelNow=parseFloat(v.toFixed(1));
+    logEvent('FUEL_MANUAL',{setTo:L.fuelNow,prev:parseFloat(prev.toFixed(1)),lap:L.totalLaps});
+    document.getElementById('manFuel').value='';
+    updateFuel();renderPitStopTab();push();
+  }
+};
+window.setCurrentLap=()=>{
+  const v=parseInt(document.getElementById('curLap').value);
+  if(!isNaN(v)&&v>=0){
+    L.totalLaps=v;
+    L.stintLaps=Math.min(L.stintLaps,v);
+    document.getElementById('curLap').value='';
+    updateFuel();push();
+  }
+};
 
 function renderPitWindows(){
   const el=document.getElementById('pitWindows');if(!el)return;
@@ -913,7 +1029,15 @@ function renderPitWindows(){
 }
 
 // ── DRIVERS ──
-window.rotateDriver=()=>{L.curDrv=(L.curDrv+1)%L.drivers.length;L.stintLaps=0;L.stintNum++;L.fuelNow=L.tank;updateFuel();renderDrvPanel();push();};
+window.rotateDriver=()=>{
+  const prevDrv=L.drivers[L.curDrv];
+  L.curDrv=(L.curDrv+1)%L.drivers.length;
+  L.stintLaps=0;
+  L.stintNum++;
+  // Do NOT reset fuel — fuel is only changed by refuel actions
+  logEvent('DRIVER_CHANGE',{out:prevDrv,in:L.drivers[L.curDrv],lap:L.totalLaps,stintNum:L.stintNum});
+  updateFuel();renderDrvPanel();renderPitStopTab();push();
+};
 function renderDrvPanel(){renderCurDrv();renderDrvTime();renderFastLapTable();}
 function renderCurDrv(){
   const el=document.getElementById('curDrvDisp');if(!el)return;
@@ -962,7 +1086,9 @@ window.logFastestLap=()=>{
   if(parts.length===2) secs=parseInt(parts[0])*60+parseFloat(parts[1]);
   else secs=parseFloat(raw);
   if(isNaN(secs)||secs<=0)return;
-  L.fastLaps.push({stintNum:L.stintNum,driver:L.drivers[L.curDrv],lapTimeSec:secs,lap:L.totalLaps,raceTimeSec:L.clockSec});
+  const t4=ts();
+  L.fastLaps.push({stintNum:L.stintNum,driver:L.drivers[L.curDrv],lapTimeSec:secs,lap:L.totalLaps,raceTimeSec:L.clockSec,raceFmt:t4.raceFmt,wall:t4.wall});
+  logEvent('fastlap',`${L.drivers[L.curDrv]}: ${fmtM(secs)} (lap ${L.totalLaps}, stint ${L.stintNum})`);
   document.getElementById('lapTimeInput').value='';
   renderFastLapTable();push();
 };
@@ -991,7 +1117,8 @@ window.addTyreSet=()=>{
   const condition=document.getElementById('tyreCondition').value;
   const lap=parseInt(document.getElementById('tyreLap').value)||L.totalLaps;
   const notes=document.getElementById('tyreNotes').value;
-  L.tyreSets.push({compound,condition,lap,notes,stintNum:L.stintNum,driver:L.drivers[L.curDrv]});
+  L.tyreSets.push({compound,condition,lap,notes,stintNum:L.stintNum,driver:L.drivers[L.curDrv],...ts()});
+  logEvent('tyres',`${compound} (${condition}) fitted at lap ${lap}${notes?' — '+notes:''}`);
   document.getElementById('tyreNotes').value='';
   renderTyrePanel();push();
 };
@@ -1037,7 +1164,7 @@ window.removeTyre=i=>{L.tyreSets.splice(i,1);renderTyrePanel();push();};
 
 // ── INCIDENTS ──
 function incTotal(){return['spin','barrier','lapped','contact'].reduce((a,t)=>a+L.drivers.reduce((_,__,i)=>_+L.inc[t][i],0),0);}
-window.addInc=(t,di)=>{L.inc[t][di]++;renderIncPanel();push();};
+window.addInc=(t,di)=>{L.inc[t][di]++;logEvent('INCIDENT',{type:t,driver:L.drivers[di],lap:L.totalLaps,total:incTotal()});renderIncPanel();push();};
 window.rmInc=(t,di)=>{if(L.inc[t][di]>0){L.inc[t][di]--;renderIncPanel();push();}};
 window.toggleFR=()=>{L.frUsed=!L.frUsed;renderIncPanel();push();};
 function renderIncPanel(){
@@ -1083,9 +1210,10 @@ function renderPitBoard(){
   if(!L.stints.length)return;
   const P=computePlan(),stints=L.stints;
   document.getElementById('pbStintBody').innerHTML=stints.map((s,idx)=>`<tr><td class="mo">${s.num}</td><td>${s.driver}</td><td class="mo">${fmtMin(s.startSec)}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td class="mo">${s.laps}</td><td class="mo">${s.fuelLoad}L</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${(L.stintNotes||{})[idx]||'—'}</td></tr>`).join('');
+  const pitStops=P.pitStops||[];
   document.getElementById('pbPitBody').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{
-    const nx=stints[i+1],la=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);
-    return `<tr><td class="mo">${i+1}</td><td class="mo">${la}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td>${nx.driver}</td><td class="mo">${(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1)}L</td><td class="mo" style="color:var(--text3)">□ Changed</td></tr>`;
+    const nx=stints[i+1],ps=pitStops[i]||{};
+    return `<tr><td class="mo">${i+1}</td><td class="mo">${ps.lap||'?'}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td>${nx.driver}</td><td class="mo">${ps.fuelAdd||'?'}L</td><td class="mo">${ps.refuelSec||'?'}s</td><td class="mo" style="font-weight:700">${ps.stopTime||'?'}s</td></tr>`;
   }).join('');
   document.getElementById('pbFairShare').innerHTML=L.drivers.map(d=>`<div>${d}: min <b style="color:var(--m-bd)">${P.fs} laps</b></div>`).join('');
   document.getElementById('pbFuelTargets').innerHTML=stints.map(s=>`<div>Stint ${s.num} — ${s.driver}: <b style="color:var(--m-bd)">${s.fuelLoad}L</b></div>`).join('');
@@ -1160,7 +1288,6 @@ function renderDebrief(){
     if(L.tyreSets.length){txt+=`\nTYRE SETS USED\n`;L.tyreSets.forEach(t=>{txt+=`Lap ${t.lap}: ${t.compound} (${t.condition})${t.notes?' — '+t.notes:''}\n`;});}
     txt+=`\nINCIDENTS\n`;
     L.drivers.forEach((d,i)=>{const dinc=types.reduce((a,t)=>a+L.inc[t][i],0);if(dinc>0){txt+=`${d}: ${labels.map((l,li)=>L.inc[types[li]][i]>0?`${L.inc[types[li]][i]}x ${l}`:'').filter(Boolean).join(', ')}\n`;}});
-    txt+=debriefExtra();
     expEl.textContent=txt;
   }
 }
@@ -1246,12 +1373,21 @@ function renderPitStopTab(){
     <div style="text-align:center"><div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px">IN</div><div class="av" style="background:${dc(next)};width:48px;height:48px;font-size:17px;margin:0 auto">${ini(L.drivers[next])}</div><div style="font-family:var(--display);font-size:16px;font-weight:800;margin-top:6px;color:${dc(next)}">${L.drivers[next]}</div></div>
   </div>`;
   // Fuel
-  const rem=Math.max(0,L.fuelNow),toAdd=Math.max(0,L.tank-rem);
-  const refuelSec=Math.round(toAdd*(L.fuelRate||0.34));
-  const pfi=document.getElementById('pitFuelInfo');
+  const rem=Math.max(0,L.fuelNow);
+  // Planned fuel add for next stint from plan
+  const nextStintIdx=L.stintNum; // 0-based index of next stint
+  const plannedAdd=L.stints&&L.stints[nextStintIdx]?Math.max(0,L.stints[nextStintIdx].fuelLoad-rem):Math.max(0,L.tank-rem);
+  const refuelSec=Math.round(plannedAdd*(L.fuelRate||0.34));
+  const total=Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0));
   if(document.getElementById('pitFuelRem')) document.getElementById('pitFuelRem').textContent=rem.toFixed(1)+'L';
-  if(document.getElementById('pitFuelAdd')) document.getElementById('pitFuelAdd').textContent=toAdd.toFixed(1)+'L';
-  if(pfi) pfi.textContent=`Refuel: ~${refuelSec}s at ${(L.fuelRate||0.34).toFixed(2)}s/L · Total stop est. ${Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0))}s`;
+  const faEl=document.getElementById('pitFuelAdd');
+  if(faEl) faEl.textContent=plannedAdd.toFixed(1)+'L';
+  const ftEl=document.getElementById('pitFuelTime');
+  if(ftEl){ftEl.textContent=refuelSec+'s';ftEl.className='mv'+(refuelSec>20?' am':'');}
+  const ftlEl=document.getElementById('pitFuelTimeLbl');
+  if(ftlEl) ftlEl.textContent='refuel time';
+  const pfi=document.getElementById('pitFuelInfo');
+  if(pfi) pfi.textContent=`Plan: +${plannedAdd.toFixed(1)}L → ${refuelSec}s refuel + ${L.pitBase||30}s base${(L.tyreChange||0)>0?' + '+L.tyreChange+'s tyres':''} = ${total}s total. Or enter custom litres above.`;
   // Position
   renderPositionDisplay();
   // Track conditions history
@@ -1263,7 +1399,9 @@ window.logPosition=()=>{
   const pos=parseInt(document.getElementById('posInput').value);
   const tot=parseInt(document.getElementById('posTotal').value);
   if(isNaN(pos)||pos<1) return;
-  L.positionLog.push({pos,tot:isNaN(tot)?null:tot,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum});
+  const posEntry={pos,tot:isNaN(tot)?null:tot,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum,realTime:lisbon()};
+  L.positionLog.push(posEntry);
+  logEvent('POSITION',{pos,tot:isNaN(tot)?null:tot,lap:L.totalLaps,stintNum:L.stintNum});
   document.getElementById('posInput').value='';
   renderPositionDisplay();push();
 };
@@ -1302,7 +1440,9 @@ window.logTrackCondition=()=>{
   const trackTemp=document.getElementById('trackTemp').value;
   const airTemp=document.getElementById('airTemp').value;
   const notes=document.getElementById('trackNotes').value;
-  L.trackCondLog.push({status,surface,trackTemp:trackTemp||'—',airTemp:airTemp||'—',notes,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum});
+  const condEntry={status,surface,trackTemp:trackTemp||'—',airTemp:airTemp||'—',notes,lap:L.totalLaps,raceTimeSec:L.clockSec,stintNum:L.stintNum,realTime:lisbon()};
+  L.trackCondLog.push(condEntry);
+  logEvent('TRACK_COND',{status,surface,trackTemp:trackTemp||'—',airTemp:airTemp||'—',notes,lap:L.totalLaps});
   document.getElementById('trackNotes').value='';
   renderTrackCondHistory();push();
 };
@@ -1327,7 +1467,8 @@ window.pitLogTyres=()=>{
   const compound=document.getElementById('pitTyreComp').value;
   const condition=document.getElementById('pitTyreCond').value;
   const notes=document.getElementById('pitTyreNotes').value;
-  L.tyreSets.push({compound,condition,lap:L.totalLaps,notes,stintNum:L.stintNum,driver:L.drivers[L.curDrv]});
+  L.tyreSets.push({compound,condition,lap:L.totalLaps,notes,stintNum:L.stintNum,driver:L.drivers[L.curDrv],realTime:lisbon()});
+  logEvent('TYRE_CHANGE',{compound,condition,lap:L.totalLaps,stintNum:L.stintNum,driver:L.drivers[L.curDrv]});
   document.getElementById('pitTyreNotes').value='';
   const el=document.getElementById('pitTyreStatus');
   if(el) el.innerHTML=`<span class="badge b-gr">Logged: ${compound} (${condition}) at lap ${L.totalLaps}</span>`;
@@ -1341,23 +1482,7 @@ window.saveStintNote=(idx,val)=>{
   push();
 };
 
-// ── DEBRIEF: include track conditions + positions ──
-function debriefExtra(){
-  let txt='';
-  if(L.positionLog&&L.positionLog.length){
-    txt+='\nPOSITION LOG\n';
-    L.positionLog.forEach(p=>txt+='Lap '+p.lap+': P'+p.pos+(p.tot?'/'+p.tot:'')+'\n');
-  }
-  if(L.trackCondLog&&L.trackCondLog.length){
-    txt+='\nTRACK CONDITIONS\n';
-    L.trackCondLog.forEach(t=>txt+='Lap '+t.lap+': '+t.status+' · '+t.surface+' · Track '+t.trackTemp+'°C · Air '+t.airTemp+'°C'+(t.notes?' · '+t.notes:'')+'\n');
-  }
-  if(L.stintNotes&&Object.keys(L.stintNotes).length){
-    txt+='\nSTINT NOTES\n';
-    Object.entries(L.stintNotes).forEach(([i,n])=>{if(n)txt+='Stint '+(parseInt(i)+1)+': '+n+'\n';});
-  }
-  return txt;
-}
+
 
 function renderLive(){
   document.getElementById('clockEl').textContent=fmtH(L.clockSec);
