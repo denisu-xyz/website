@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEC Race Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* BMW M colours — fixed */
+  --m-blue-dark: #1C2D6E;
+  --m-blue-mid:  #3659A2;
+  --m-red:       #E2001A;
+  /* Light theme (default) */
+  --bg:          #FFFFFF;
+  --bg2:         #F4F4F4;
+  --bg3:         #EBEBEB;
+  --bg4:         #E0E0E0;
+  --text:        #111111;
+  --text2:       #333333;
+  --text3:       #666666;
+  --border:      #DDDDDD;
+  --border2:     #BBBBBB;
+  --green:       #1A7A3C;
+  --green-bg:    #E8F5EE;
+  --amber:       #8A5A00;
+  --amber-bg:    #FFF4D6;
+  --red-bg:      #FDECEA;
+  --d0b: rgba(28,45,110,.08);
+  --d1b: rgba(54,89,162,.08);
+  --d2b: rgba(226,0,26,.08);
+  --display:     'Barlow Condensed', sans-serif;
+  --body:        'Barlow', sans-serif;
+  --mono:        'DM Mono', monospace;
+}
+
+/* Dark theme override */
+[data-theme="dark"] {
+  --bg:          #0d0d0f;
+  --bg2:         #16161a;
+  --bg3:         #1f1f25;
+  --bg4:         #2a2a32;
+  --text:        #F0F0EC;
+  --text2:       #C8C8C4;
+  --text3:       #888894;
+  --border:      rgba(255,255,255,0.09);
+  --border2:     rgba(255,255,255,0.18);
+  --green:       #2ECC71;
+  --green-bg:    rgba(46,204,113,0.12);
+  --amber:       #F5A623;
+  --amber-bg:    rgba(245,166,35,0.12);
+  --red-bg:      rgba(226,0,26,0.12);
+  --d0b: rgba(28,45,110,.22);
+  --d1b: rgba(54,89,162,.22);
+  --d2b: rgba(226,0,26,.18);
+}
+
+/* Smooth theme transition */
+body, .card, .topbar, .tabbar, .tab, .m, .sc, .pc, .cc, .rule, .al, input, .btn {
+  transition: background-color .2s, color .2s, border-color .2s;
+}
+
+*  { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16px; line-height: 1.5; min-height: 100vh; }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--m-blue-dark);
+  display: flex; align-items: center; height: 60px;
+  padding: 0 24px; gap: 20px;
+  position: sticky; top: 0; z-index: 200;
+}
+.logo { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: .06em; color: #fff; flex-shrink: 0; }
+.logo-stripe { display: inline-flex; gap: 3px; margin-left: 8px; vertical-align: middle; }
+.logo-stripe span { display: inline-block; width: 6px; height: 18px; border-radius: 1px; }
+.logo-sub { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.55); flex-shrink: 0; white-space: nowrap; }
+.vsep { width: 1px; height: 30px; background: rgba(255,255,255,.2); flex-shrink: 0; }
+.clock-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.clock { font-family: var(--display); font-size: 30px; font-weight: 700; letter-spacing: .08em; color: #fff; min-width: 110px; }
+.clock.go { color: #FFD700; }
+.sync-wrap { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.3); }
+.sdot.live { background: #4CD964; box-shadow: 0 0 6px #4CD964; }
+.sdot.sync { background: #FFD700; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.slbl { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.55); }
+.topbar-right { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+
+/* ── TAB BAR ── */
+.tabbar {
+  background: var(--bg); border-bottom: 3px solid var(--bg3);
+  display: flex;
+}
+.tab {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 15px 6px;
+  font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text3); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -3px;
+  transition: color .15s, border-color .15s; user-select: none; white-space: nowrap;
+}
+.tab:hover { color: var(--m-blue-dark); }
+.tab.active { color: var(--m-blue-dark); border-bottom-color: var(--m-blue-dark); }
+@media(max-width:600px) { .tab { font-size: 11px; padding: 12px 3px; letter-spacing: .03em; } }
+
+/* ── LAYOUT ── */
+.main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+.panel { display: none; } .panel.active { display: block; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+@media(max-width:700px) { .g2,.g3 { grid-template-columns: 1fr; } .main { padding: 16px; } }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px; font-family: var(--display); font-size: 14px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; border-radius: 3px;
+  cursor: pointer; transition: all .12s; border: 2px solid var(--border2);
+  background: var(--bg2); color: var(--text);
+}
+.btn:hover { background: var(--bg3); }
+.btn:active { transform: scale(.97); }
+.btn-blue { background: var(--m-blue-dark); color: #fff; border-color: var(--m-blue-dark); }
+.btn-blue:hover { background: var(--m-blue-mid); border-color: var(--m-blue-mid); }
+.btn-red { background: var(--m-red); color: #fff; border-color: var(--m-red); }
+.btn-red:hover { filter: brightness(1.1); }
+.btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+.btn-green:hover { filter: brightness(1.1); }
+.btn-sm { padding: 7px 14px; font-size: 12px; }
+.btn-ghost { background: transparent; border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); }
+.btn-ghost:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.5); color: #fff; }
+
+/* ── CARDS ── */
+.card { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 20px 22px; }
+.card + .card { margin-top: 16px; }
+.chd {
+  font-family: var(--display); font-size: 11px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--text3);
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.chd::before { content: ''; width: 12px; height: 4px; background: var(--m-blue-dark); border-radius: 1px; display: block; flex-shrink: 0; }
+.card.accent { border-left: 4px solid var(--m-blue-dark); }
+.card.accent-red { border-left: 4px solid var(--m-red); }
+
+/* ── METRICS ── */
+.mrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.m { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 16px 16px; }
+.m .ml { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 6px; letter-spacing: .05em; text-transform: uppercase; }
+.m .mv { font-family: var(--display); font-size: 32px; font-weight: 800; line-height: 1; color: var(--text); }
+.m .mv.bl { color: var(--m-blue-dark); }
+.m .mv.rd { color: var(--m-red); }
+.m .mv.gr { color: var(--green); }
+.m .mv.am { color: var(--amber); }
+.m .ms { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 5px; }
+.m.hi { border-color: var(--m-blue-dark); background: var(--d0b); }
+
+/* ── FORM ── */
+.flbl { font-family: var(--mono); font-size: 10px; color: var(--text3); display: block; margin-bottom: 5px; letter-spacing: .07em; text-transform: uppercase; }
+input[type=text], input[type=number], select {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border2);
+  border-radius: 3px; padding: 9px 12px; font-size: 15px; font-family: var(--body); width: 100%;
+  transition: border-color .15s;
+}
+input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--m-blue-dark); box-shadow: 0 0 0 3px rgba(28,45,110,.08); }
+.rrow { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
+.rrow .rl { font-family: var(--mono); font-size: 12px; color: var(--text2); min-width: 155px; }
+input[type=range] { flex: 1; accent-color: var(--m-blue-dark); cursor: pointer; height: 4px; }
+.rv { font-family: var(--mono); font-size: 14px; font-weight: 500; min-width: 60px; text-align: right; color: var(--text); }
+
+/* ── BADGES ── */
+.badge { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 3px; letter-spacing: .04em; }
+.b-bl { background: var(--d0b); color: var(--m-blue-dark); border: 1px solid rgba(28,45,110,.2); }
+.b-gr { background: var(--green-bg); color: var(--green); border: 1px solid rgba(26,122,60,.2); }
+.b-rd { background: var(--red-bg); color: var(--m-red); border: 1px solid rgba(226,0,26,.2); }
+.b-am { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(138,90,0,.2); }
+.b-mu { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+
+/* ── ALERTS ── */
+.al { border-radius: 3px; padding: 12px 15px; font-family: var(--mono); font-size: 13px; border-left: 4px solid; line-height: 1.6; }
+.al-gr { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.al-am { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); }
+.al-rd { background: var(--red-bg); color: var(--m-red); border-color: var(--m-red); }
+.al-bl { background: var(--d0b); color: var(--m-blue-dark); border-color: var(--m-blue-dark); }
+
+/* ── TIMELINE ── */
+.tl { height: 40px; border-radius: 3px; overflow: hidden; position: relative; background: var(--bg3); margin: 12px 0; border: 1px solid var(--border); }
+.tl-s { height: 100%; position: absolute; top: 0; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 13px; font-weight: 800; letter-spacing: .04em; color: #fff; }
+.tl-p { height: 100%; position: absolute; top: 0; background: #fff; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+/* ── FUEL BAR ── */
+.fb-wrap { background: var(--bg3); border-radius: 3px; height: 28px; overflow: hidden; position: relative; margin: 12px 0; border: 1px solid var(--border); }
+.fb { height: 100%; border-radius: 2px; transition: width .5s, background .4s; display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; }
+.fb-pct { font-family: var(--display); font-size: 13px; font-weight: 800; color: #fff; }
+
+/* ── TABLES ── */
+table { width: 100%; border-collapse: collapse; }
+th { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--text3); text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border2); letter-spacing: .07em; text-transform: uppercase; background: var(--bg2); }
+td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 15px; color: var(--text); }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--bg2); }
+td.mo { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+
+/* ── DRIVER ROWS ── */
+.drow { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.drow:last-child { border-bottom: none; }
+.av { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 14px; font-weight: 800; flex-shrink: 0; color: #fff; }
+.pb-wrap { background: var(--bg3); border-radius: 2px; height: 5px; overflow: hidden; flex: 1; }
+.pb { height: 100%; border-radius: 2px; transition: width .4s; }
+
+/* ── INCIDENTS ── */
+.irow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.irow:last-child { border-bottom: none; }
+.ig { display: flex; align-items: center; gap: 6px; }
+.ilbl { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: .04em; }
+.ibtn { width: 32px; height: 32px; border-radius: 3px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; font-family: var(--body); line-height: 1; }
+.ibtn:hover { background: var(--bg3); }
+.inum { font-family: var(--display); font-size: 26px; font-weight: 800; min-width: 30px; text-align: center; color: var(--text); }
+
+/* ── RADIO ── */
+.cg { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.cc { border: 1px solid var(--border); border-radius: 4px; padding: 14px 16px; cursor: pointer; transition: all .12s; background: var(--bg2); }
+.cc:hover { border-color: var(--m-blue-dark); background: var(--bg); box-shadow: 0 2px 8px rgba(28,45,110,.1); }
+.cc:active { transform: scale(.97); }
+.cc-cat { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 5px; }
+.cc-txt { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .02em; color: var(--text); }
+.cc.flash { border-color: var(--m-red) !important; background: var(--red-bg) !important; }
+.cc.flash .cc-txt { color: var(--m-red); }
+
+/* ── RULE BOX ── */
+.rule { background: var(--bg2); border: 1px solid var(--border); border-left: 4px solid var(--m-blue-dark); border-radius: 3px; padding: 13px 16px; font-family: var(--mono); font-size: 12px; color: var(--text2); line-height: 1.8; }
+.rule b { color: var(--m-blue-dark); font-weight: 500; }
+
+/* ── STINT CARD ── */
+.sc { border: 1px solid var(--border); border-radius: 4px; padding: 16px 18px; background: var(--bg); margin-bottom: 10px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.sc:hover { background: var(--bg2); }
+.sc-n { font-family: var(--display); font-size: 44px; font-weight: 800; color: var(--bg4); min-width: 36px; line-height: 1; }
+.sc-drv { font-family: var(--display); font-size: 22px; font-weight: 800; }
+.sc-dets { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 5px; }
+.sc-d { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+.sc-d b { color: var(--text); font-weight: 500; }
+
+/* ── PIT CARD ── */
+.pc { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 4px; padding: 14px 18px; background: var(--bg2); margin-bottom: 10px; }
+.pc-n { font-family: var(--display); font-size: 15px; font-weight: 800; letter-spacing: .06em; color: var(--m-blue-dark); min-width: 65px; }
+.pc-i { flex: 1; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+.pc-kv .pk { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 2px; text-transform: uppercase; letter-spacing: .05em; }
+.pc-kv .pv { font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--text); }
+
+/* ── FR DOT ── */
+.fr { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; font-weight: 500; cursor: pointer; transition: all .15s; letter-spacing: .03em; border: 2px solid; }
+.fr-ok { background: var(--green-bg); color: var(--green); border-color: rgba(26,122,60,.3); }
+.fr-used { background: var(--red-bg); color: var(--m-red); border-color: rgba(226,0,26,.3); }
+
+/* ── SECTION HEADER ── */
+.sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.st { font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: .02em; color: var(--text); }
+
+/* ── M STRIPE DECORATION ── */
+.m-stripe { display: flex; height: 4px; margin-bottom: 24px; }
+.m-stripe div { flex: 1; }
+.m-stripe .s1 { background: var(--m-blue-dark); }
+.m-stripe .s2 { background: var(--m-blue-mid); }
+.m-stripe .s3 { background: var(--m-red); }
+
+/* ── PRINT ── */
+@media print {
+  .topbar, .tabbar, .no-print { display: none !important; }
+  .panel { display: block !important; }
+  #panel-pitboard { display: block !important; }
+  body { font-size: 14px; }
+  .card { border: 1px solid #ccc; }
+  .m { background: #f5f5f5; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    NEC.MGR
+    <div class="logo-stripe">
+      <span style="background:#1C2D6E"></span>
+      <span style="background:#3659A2"></span>
+      <span style="background:#E2001A"></span>
+    </div>
+  </div>
+  <div class="logo-sub">BMW M2 · NÜRBURGRING VLN · 4H</div>
+  <div class="vsep"></div>
+  <div class="clock-wrap">
+    <div class="clock" id="clockEl">0:00:00</div>
+    <button class="btn btn-green btn-sm" id="startBtn" onclick="toggleClock()">START</button>
+  </div>
+  <div class="vsep"></div>
+  <div class="sync-wrap">
+    <div class="sdot" id="sdot"></div>
+    <div class="slbl" id="slbl">Offline</div>
+  </div>
+  <div class="topbar-right no-print">
+    <button class="btn btn-ghost btn-sm" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark">☀</button>
+    <button class="btn btn-ghost btn-sm" onclick="resetAll()">RESET</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">PRINT</button>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tabbar">
+  <div class="tab active" onclick="switchTab('plan')">Plan</div>
+  <div class="tab" onclick="switchTab('fuel')">Fuel</div>
+  <div class="tab" onclick="switchTab('drivers')">Drivers</div>
+  <div class="tab" onclick="switchTab('incidents')">Incidents</div>
+  <div class="tab" onclick="switchTab('radio')">Radio</div>
+  <div class="tab" onclick="switchTab('pitboard')">Pit Board</div>
+  <div class="tab" onclick="switchTab('setup')">Setup</div>
+</div>
+
+<div class="main">
+
+<!-- ══ PLAN ══ -->
+<div id="panel-plan" class="panel active">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh"><div class="st">Race planner</div></div>
+  <div class="g2" style="margin-bottom:18px">
+    <div class="card">
+      <div class="chd">Race &amp; lap</div>
+      <div class="rrow"><span class="rl">Race duration</span><input type="range" id="p-dur" min="60" max="480" value="240" step="1" oninput="planUpdate()"><span class="rv" id="p-durV">240 min</span></div>
+      <div class="rrow"><span class="rl">Lap time</span><input type="range" id="p-lap" min="460" max="660" value="510" step="1" oninput="planUpdate()"><span class="rv" id="p-lapV">8:30</span></div>
+      <div class="rrow"><span class="rl">Pit stop loss</span><input type="range" id="p-pitloss" min="60" max="180" value="90" step="5" oninput="planUpdate()"><span class="rv" id="p-pitlossV">90s</span></div>
+    </div>
+    <div class="card">
+      <div class="chd">Fuel</div>
+      <div class="rrow"><span class="rl">Tank capacity</span><input type="range" id="p-tank" min="20" max="120" value="70" step="1" oninput="planUpdate()"><span class="rv" id="p-tankV">70L</span></div>
+      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="p-fpl" min="1.0" max="8.0" value="3.2" step="0.1" oninput="planUpdate()"><span class="rv" id="p-fplV">3.2L</span></div>
+      <div class="rrow"><span class="rl">Safety margin</span><input type="range" id="p-margin" min="0.5" max="10" value="3.0" step="0.5" oninput="planUpdate()"><span class="rv" id="p-marginV">3.0L</span></div>
+    </div>
+  </div>
+
+  <div class="card accent" style="margin-bottom:18px">
+    <div class="chd">Fuel strategy result</div>
+    <div class="mrow" id="stratMetrics"></div>
+    <div id="stratAlert" class="al al-bl" style="margin-bottom:12px"></div>
+    <div id="stratDesc" style="font-family:var(--mono);font-size:13px;color:var(--text3);line-height:1.9"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="chd">Drivers</div>
+    <div class="g3" id="dSetupGrid"></div>
+  </div>
+
+  <div id="stintSection">
+    <div class="sh" style="margin-top:8px"><div class="st" style="font-size:20px">Stint plan</div></div>
+    <div class="tl" id="planTL"></div>
+    <div id="tlLegend" style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px"></div>
+    <div id="stintCards"></div>
+    <div class="g2" style="margin-top:18px">
+      <div class="card">
+        <div class="chd">Pit stop schedule</div>
+        <div id="pitCards"></div>
+        <div class="rule" style="margin-top:14px"><b>Driver swap timer: 30 seconds</b> from when car stops in pit stall. Timer counts during refuelling and tyre changes too.</div>
+      </div>
+      <div class="card">
+        <div class="chd">Driver fair share</div>
+        <div id="fairShareTbl"></div>
+        <div class="rule" style="margin-top:14px">Formula: <b>ceil(total_laps ÷ drivers ÷ 4)</b> laps minimum per driver. Failure = DQ.<br>Don't leave a driver for the final stint only — required laps can grow after caution periods.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FUEL ══ -->
+<div id="panel-fuel" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh">
+    <div class="st">Fuel monitor</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="lapDone()">+ LAP DONE</button>
+      <button class="btn" onclick="pitRefuel()">PIT REFUEL</button>
+    </div>
+  </div>
+  <div class="mrow">
+    <div class="m hi"><div class="ml">Fuel remaining</div><div class="mv bl" id="f-rem">70.0L</div><div class="ms">in tank now</div></div>
+    <div class="m"><div class="ml">Laps to empty</div><div class="mv" id="f-laps">21</div><div class="ms" id="f-lSub">at 3.2L/lap</div></div>
+    <div class="m"><div class="ml">Stint laps</div><div class="mv" id="f-sl">0</div><div class="ms">this stint</div></div>
+    <div class="m"><div class="ml">Total laps</div><div class="mv" id="f-tl">0</div><div class="ms">race total</div></div>
+    <div class="m"><div class="ml">Fuel at stint end</div><div class="mv" id="f-ee">—</div><div class="ms" id="f-eeSub">estimated</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="fb-wrap"><div class="fb" id="fBar" style="width:100%;background:var(--m-blue-dark)"><span class="fb-pct" id="fPct">100%</span></div></div>
+    <div id="fMsg" class="al al-gr" style="margin-top:12px"></div>
+    <div style="display:flex;align-items:flex-end;gap:20px;margin-top:18px;flex-wrap:wrap">
+      <div><label class="flbl">Set fuel manually (L)</label><div style="display:flex;gap:8px"><input type="number" id="manFuel" placeholder="e.g. 45.5" style="width:130px"><button class="btn btn-sm" onclick="setFuelManual()">Set</button></div></div>
+      <div><label class="flbl">Set current lap #</label><div style="display:flex;gap:8px"><input type="number" id="curLap" placeholder="e.g. 14" style="width:110px"><button class="btn btn-sm" onclick="setCurrentLap()">Set</button></div></div>
+    </div>
+  </div>
+  <div class="card"><div class="chd">Pit windows</div><div id="pitWindows"></div></div>
+</div>
+
+<!-- ══ DRIVERS ══ -->
+<div id="panel-drivers" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh">
+    <div class="st">Driver tracker</div>
+    <button class="btn btn-blue" onclick="rotateDriver()">DRIVER CHANGE (PIT)</button>
+  </div>
+  <div class="card accent" style="margin-bottom:16px"><div class="chd">Currently driving</div><div id="curDrvDisp"></div></div>
+  <div class="card" style="margin-bottom:16px"><div class="chd">Time &amp; fair share progress</div><div id="drvTimeRows"></div></div>
+  <div class="rule">
+    <b>iRacing in-sim indicator:</b> check Entries tab for n/r(R) per driver.<br>
+    Red = not enough laps &nbsp;·&nbsp; Yellow = enough for current estimate &nbsp;·&nbsp; Green = safe at final estimate.<br>
+    Fair share = <b>ceil(total_laps ÷ num_drivers ÷ 4)</b> laps minimum.
+  </div>
+</div>
+
+<!-- ══ INCIDENTS ══ -->
+<div id="panel-incidents" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh"><div class="st">Incidents</div></div>
+  <div class="g2" style="margin-bottom:16px">
+    <div class="card accent">
+      <div class="chd">Team total</div>
+      <div id="teamTotalDisp"></div>
+      <div id="incWarn" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="chd">Fast repair</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+        <div class="fr fr-ok" id="frDot" onclick="toggleFR()">OK</div>
+        <div>
+          <div style="font-family:var(--display);font-size:20px;font-weight:800;color:var(--text)" id="frLbl">Available</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:3px">1 total — tap to toggle</div>
+        </div>
+      </div>
+      <div class="rule" style="margin-top:16px"><b>NEC penalties:</b> 50x = Stop &amp; Go · then every 20x (70x, 90x, 110x…)<br>Team incidents = sum across all drivers.</div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px"><div class="chd">Per driver</div><div id="incRows"></div></div>
+  <div class="card"><div class="chd">Banter leaderboard</div><div id="banterRows"></div><div id="banterLdr" style="margin-top:12px;font-family:var(--mono);font-size:13px;color:var(--text3)"></div></div>
+</div>
+
+<!-- ══ RADIO ══ -->
+<div id="panel-radio" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh"><div class="st">Radio cues</div><span style="font-family:var(--mono);font-size:13px;color:var(--text3)">Tap to flash</span></div>
+  <div class="cg" id="cueGrid"></div>
+</div>
+
+<!-- ══ PIT BOARD ══ -->
+<div id="panel-pitboard" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh no-print"><div class="st">Pit board</div><button class="btn btn-blue" onclick="window.print()">PRINT / SAVE PDF</button></div>
+  <div id="pbContent">
+    <div style="border-bottom:3px solid var(--m-blue-dark);padding-bottom:18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:var(--display);font-size:38px;font-weight:800;letter-spacing:.02em;color:var(--text)">NEC 4-Hour Race</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:4px">BMW M2 Competition · Nürburgring Combined VLN · iRacing</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text3);text-align:right;line-height:2.4">
+        <div>Race start: ______________</div>
+        <div>Fast repair: <b style="color:var(--m-red)">1 ONLY</b> &nbsp;|&nbsp; Swap timer: <b style="color:var(--m-blue-dark)">30 sec</b></div>
+        <div>Penalties: <b style="color:var(--m-red)">50x → S&amp;G, then every 20x</b></div>
+      </div>
+    </div>
+    <div class="g2" style="margin-bottom:18px">
+      <div class="card"><div class="chd">Stint plan</div><table><thead><tr><th>#</th><th>Driver</th><th>Start</th><th>End</th><th>Laps</th><th>Fuel load</th></tr></thead><tbody id="pbStintBody"></tbody></table></div>
+      <div class="card"><div class="chd">Pit stops</div><table><thead><tr><th>Stop</th><th>Lap</th><th>~Time</th><th>Driver in</th><th>Add fuel</th></tr></thead><tbody id="pbPitBody"></tbody></table></div>
+    </div>
+    <div class="g2" style="margin-bottom:18px">
+      <div class="card"><div class="chd">Fair share minimums</div><div id="pbFairShare" style="font-family:var(--mono);font-size:14px;line-height:2.6;color:var(--text)"></div></div>
+      <div class="card"><div class="chd">Fuel targets per stint</div><div id="pbFuelTargets" style="font-family:var(--mono);font-size:14px;line-height:2.6;color:var(--text)"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px"><div class="chd">Radio cues</div><div class="cg" id="pbCues"></div></div>
+    <div class="card"><div class="chd">Emergency notes</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:13px;color:var(--text2);line-height:2.4">
+        <div>SC/FCY: slow down, check pit window</div><div>Rain: fit wet tyres at next stop</div>
+        <div>Crash: use fast repair (1 only!)</div><div>Driver stuck: team can tow after 5 sec</div>
+        <div>48x incidents: warn driver, lift &amp; coast</div><div>Blue flag = yield to faster class car</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETUP ══ -->
+<div id="panel-setup" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh"><div class="st">Setup</div></div>
+  <div class="g2">
+    <div class="card">
+      <div class="chd">Race parameters</div>
+      <div class="rrow"><span class="rl">Race duration</span><input type="range" id="s-dur" min="60" max="480" value="240" step="1" oninput="syncSetup()"><span class="rv" id="s-durV">240 min</span></div>
+      <div class="rrow"><span class="rl">Lap time</span><input type="range" id="s-lap" min="460" max="660" value="510" step="1" oninput="syncSetup()"><span class="rv" id="s-lapV">8:30</span></div>
+      <div class="rrow"><span class="rl">Fuel per lap</span><input type="range" id="s-fpl" min="1.0" max="8.0" value="3.2" step="0.1" oninput="syncSetup()"><span class="rv" id="s-fplV">3.2L</span></div>
+      <div class="rrow"><span class="rl">Tank capacity</span><input type="range" id="s-tank" min="20" max="120" value="70" step="1" oninput="syncSetup()"><span class="rv" id="s-tankV">70L</span></div>
+      <div class="rrow"><span class="rl">Safety margin</span><input type="range" id="s-margin" min="0.5" max="10" value="3.0" step="0.5" oninput="syncSetup()"><span class="rv" id="s-marginV">3.0L</span></div>
+      <div class="rrow"><span class="rl">Pit stop loss</span><input type="range" id="s-pitloss" min="60" max="180" value="90" step="5" oninput="syncSetup()"><span class="rv" id="s-pitlossV">90s</span></div>
+    </div>
+    <div class="card"><div class="chd">Drivers</div><div id="dNameSetup" style="display:grid;gap:16px"></div></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const FB=initializeApp({apiKey:"AIzaSyAJriIMMQ4537Gq88cqDFa4ttBNcaUKjr8",authDomain:"laps-746d8.firebaseapp.com",projectId:"laps-746d8",storageBucket:"laps-746d8.firebasestorage.app",messagingSenderId:"1020079730620",appId:"1:1020079730620:web:a187ebd768ca739e51c5b9",databaseURL:"https://laps-746d8-default-rtdb.firebaseio.com"});
+const db=getDatabase(FB),rr=k=>ref(db,`race1/${k}`);
+const DC=['#1C2D6E','#3659A2','#E2001A'];
+const DCB=['rgba(28,45,110,.1)','rgba(54,89,162,.1)','rgba(226,0,26,.1)'];
+let L={clockSec:0,running:false,_int:null,dur:240,lapSec:510,pitLoss:90,tank:70,fpl:3.2,margin:3.0,drivers:['Driver 1','Driver 2','Driver 3'],stints:[],curDrv:0,drvTime:[0,0,0],stintLaps:0,totalLaps:0,stintNum:1,fuelNow:70,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false};
+const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec'];
+function setSS(s){const d=document.getElementById('sdot'),l=document.getElementById('slbl');if(s==='live'){d.className='sdot live';l.textContent='Live';}else if(s==='sync'){d.className='sdot sync';l.textContent='Syncing…';}else{d.className='sdot';l.textContent='Offline';}}
+function push(){setSS('sync');const p={};SYNC.forEach(k=>p[k]=L[k]);update(rr('state'),p).then(()=>setSS('live')).catch(()=>setSS('offline'));}
+try{onValue(rr('state'),snap=>{setSS('live');const d=snap.val();if(!d)return;SYNC.forEach(k=>{if(d[k]!==undefined)L[k]=d[k];});renderLive();},()=>setSS('offline'));}catch(e){setSS('offline');}
+const fmtH=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60);return `${h}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;};
+const fmtM=s=>{const m=Math.floor(s/60),sc=Math.floor(s%60);return `${m}:${sc.toString().padStart(2,'0')}`;};
+const fmtMin=s=>{const h=Math.floor(s/3600),m=Math.round((s%3600)/60);return h>0?`${h}h${m.toString().padStart(2,'0')}m`:`${m}m`;};
+const ini=n=>(n||'?').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';
+window.switchTab=t=>{document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.onclick?.toString().includes(`'${t}'`)));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${t}`));if(t==='pitboard')renderPitBoard();};
+window.toggleClock=()=>{if(!L.running){L.running=true;document.getElementById('startBtn').textContent='PAUSE';document.getElementById('startBtn').className='btn btn-red btn-sm';document.getElementById('clockEl').classList.add('go');L._int=setInterval(()=>{L.clockSec++;L.drvTime[L.curDrv]++;document.getElementById('clockEl').textContent=fmtH(L.clockSec);if(L.clockSec%15===0){push();renderLive();}},1000);}else{L.running=false;document.getElementById('startBtn').textContent='RESUME';document.getElementById('startBtn').className='btn btn-green btn-sm';document.getElementById('clockEl').classList.remove('go');clearInterval(L._int);push();}};
+window.resetAll=()=>{if(!confirm('Reset all live race data?'))return;clearInterval(L._int);Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false});document.getElementById('clockEl').textContent='0:00:00';document.getElementById('clockEl').classList.remove('go');document.getElementById('startBtn').textContent='START';document.getElementById('startBtn').className='btn btn-green btn-sm';push();renderAll();};
+function computePlan(){const{dur,lapSec,pitLoss,tank,fpl,margin,drivers}=L,nd=drivers.length;const maxLaps=Math.floor((tank-margin)/fpl),maxStSec=maxLaps*lapSec;const raceSec=dur*60,totalLapsEst=Math.floor(raceSec/lapSec);const minFuelStops=Math.max(0,Math.ceil(raceSec/maxStSec)-1),stops=Math.max(minFuelStops,nd-1),nStints=stops+1;const driveSec=raceSec-stops*pitLoss,avgSec=driveSec/nStints,fs=Math.ceil(totalLapsEst/nd/4);const stints=[],dLaps=new Array(nd).fill(0);let clk=0;for(let i=0;i<nStints;i++){const di=i%nd,stSec=Math.min(avgSec,maxStSec),laps=Math.floor(stSec/lapSec),actSec=laps*lapSec,fl=Math.min(tank,Math.ceil(laps*fpl+margin)),fe=Math.max(0,fl-laps*fpl);dLaps[di]+=laps;stints.push({num:i+1,di,driver:drivers[di],startSec:clk,stintSec:actSec,laps,fuelLoad:fl,fuelEnd:fe.toFixed(1),isLast:i===nStints-1});clk+=actSec+(i<nStints-1?pitLoss:0);}return{stints,stops,minFuelStops,nStints,maxLaps,maxStSec,totalLapsEst,totalLapsCalc:stints.reduce((a,s)=>a+s.laps,0),fs,dLaps,driveSec,avgSec,totalSec:clk};}
+function planUpdate(){L.dur=parseInt(document.getElementById('p-dur').value);L.lapSec=parseInt(document.getElementById('p-lap').value);L.pitLoss=parseInt(document.getElementById('p-pitloss').value);L.tank=parseInt(document.getElementById('p-tank').value);L.fpl=parseFloat(document.getElementById('p-fpl').value);L.margin=parseFloat(document.getElementById('p-margin').value);document.getElementById('p-durV').textContent=L.dur+' min';document.getElementById('p-lapV').textContent=fmtM(L.lapSec);document.getElementById('p-pitlossV').textContent=L.pitLoss+'s';document.getElementById('p-tankV').textContent=L.tank+'L';document.getElementById('p-fplV').textContent=L.fpl.toFixed(1)+'L';document.getElementById('p-marginV').textContent=L.margin.toFixed(1)+'L';const P=computePlan();L.stints=P.stints;L.fuelNow=L.tank;renderStrat(P);renderStints(P);renderPitWindows();syncSetupSliders();}
+window.planUpdate=planUpdate;
+function renderStrat(P){document.getElementById('stratMetrics').innerHTML=`<div class="m hi"><div class="ml">Pit stops needed</div><div class="mv bl">${P.stops}</div><div class="ms">fuel-driven minimum</div></div><div class="m"><div class="ml">Max laps / tank</div><div class="mv">${P.maxLaps}</div><div class="ms">${fmtMin(P.maxStSec)} max stint</div></div><div class="m"><div class="ml">Est. total laps</div><div class="mv">${P.totalLapsEst}</div><div class="ms">at ${fmtM(L.lapSec)}/lap</div></div><div class="m"><div class="ml">Avg stint</div><div class="mv" style="font-size:22px">${fmtMin(P.avgSec)}</div><div class="ms">${Math.floor(P.avgSec/L.lapSec)} laps</div></div><div class="m"><div class="ml">Fair share min</div><div class="mv">${P.fs}</div><div class="ms">laps / driver</div></div>`;const al=document.getElementById('stratAlert');if(P.minFuelStops===0){al.className='al al-gr';al.textContent=`Full tank (${L.tank}L) covers the whole race — ${P.maxLaps} laps max, ~${P.totalLapsEst} needed. Stops are for driver changes only.`;}else{al.className='al al-bl';al.textContent=`${P.minFuelStops} fuel stop${P.minFuelStops>1?'s':''} required. Max range per full tank: ${P.maxLaps} laps (${fmtMin(P.maxStSec)}).`;}document.getElementById('stratDesc').innerHTML=`Driving time: <b style="color:var(--text)">${fmtMin(P.driveSec)}</b> &nbsp;·&nbsp; Pit time lost: <b style="color:var(--text)">${fmtMin(P.stops*L.pitLoss)}</b> (${P.stops}×${L.pitLoss}s) &nbsp;·&nbsp; Laps planned: <b style="color:var(--text)">${P.totalLapsCalc}</b>`;}
+function renderStints(P){const{stints,fs,dLaps}=P,tot=stints[stints.length-1].startSec+stints[stints.length-1].stintSec;const tl=document.getElementById('planTL');tl.innerHTML='';stints.forEach(s=>{const g=document.createElement('div');g.className='tl-s';g.style.cssText=`left:${((s.startSec/tot)*100).toFixed(1)}%;width:${((s.stintSec/tot)*100).toFixed(1)}%;background:${DC[s.di]}`;g.textContent=s.driver.split(' ')[0];tl.appendChild(g);if(!s.isLast){const pt=document.createElement('div');pt.className='tl-p';pt.style.cssText=`left:${(((s.startSec+s.stintSec)/tot)*100).toFixed(1)}%;width:${Math.max((L.pitLoss/tot)*100,.5).toFixed(1)}%`;tl.appendChild(pt);}});document.getElementById('tlLegend').innerHTML=L.drivers.map((d,i)=>`<span style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:13px;color:var(--text2)"><span style="width:14px;height:14px;border-radius:2px;background:${DC[i]};display:inline-block"></span>${d}</span>`).join('')+`<span style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:13px;color:var(--text3)"><span style="width:14px;height:14px;border-radius:2px;background:var(--bg);border:2px solid var(--border2);display:inline-block"></span>Pit</span>`;document.getElementById('stintCards').innerHTML=stints.map(s=>`<div class="sc"><div class="sc-n">${s.num}</div><div class="av" style="background:${DC[s.di]}">${ini(s.driver)}</div><div style="flex:1;min-width:130px"><div class="sc-drv" style="color:${DC[s.di]}">${s.driver}</div><div class="sc-dets"><div class="sc-d"><b>${fmtMin(s.startSec)}</b> start</div><div class="sc-d"><b>${fmtMin(s.startSec+s.stintSec)}</b> end</div><div class="sc-d"><b>${fmtMin(s.stintSec)}</b> long</div><div class="sc-d"><b>${s.laps}</b> laps</div></div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Fuel load</div><div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--m-blue-dark)">${s.fuelLoad}L</div><div style="font-family:var(--mono);font-size:12px;color:var(--text3)">${s.fuelEnd}L at end</div></div><div>${s.isLast?'<span class="badge b-gr">FINISH</span>':'<span class="badge b-bl">PIT STOP</span>'}</div></div>`).join('');document.getElementById('pitCards').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{const nx=stints[i+1],fa=(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1),lAt=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);return `<div class="pc"><div class="pc-n">STOP ${i+1}</div><div class="pc-i"><div class="pc-kv"><div class="pk">Lap</div><div class="pv">${lAt}</div></div><div class="pc-kv"><div class="pk">~Time</div><div class="pv">${fmtMin(s.startSec+s.stintSec)}</div></div><div class="pc-kv"><div class="pk">Out</div><div class="pv">${s.driver}</div></div><div class="pc-kv"><div class="pk">In</div><div class="pv" style="color:${DC[nx.di]}">${nx.driver}</div></div><div class="pc-kv"><div class="pk">Add fuel</div><div class="pv" style="color:var(--m-blue-dark)">${fa}L</div></div><div class="pc-kv"><div class="pk">Target</div><div class="pv">${nx.fuelLoad}L</div></div><div class="pc-kv"><div class="pk">Swap timer</div><div class="pv" style="color:var(--m-red)">30s</div></div></div></div>`;}).join('');document.getElementById('fairShareTbl').innerHTML=`<table><thead><tr><th>Driver</th><th>Planned laps</th><th>Min required</th><th>Status</th></tr></thead><tbody>${L.drivers.map((d,i)=>{const ok=dLaps[i]>=fs;return `<tr><td><span class="badge" style="background:${DCB[i]};color:${DC[i]};border:1px solid ${DC[i]}33">${d}</span></td><td class="mo">${dLaps[i]}</td><td class="mo">${fs}</td><td>${ok?'<span class="badge b-gr">OK</span>':'<span class="badge b-rd">SHORT</span>'}</td></tr>`;}).join('')}</tbody></table>`;}
+function updateFuel(){const rem=Math.max(0,L.fuelNow),pct=Math.min(100,(rem/L.tank)*100),lte=Math.max(0,Math.floor((rem-L.margin)/L.fpl));document.getElementById('f-rem').textContent=rem.toFixed(1)+'L';document.getElementById('f-laps').textContent=lte;document.getElementById('f-lSub').textContent=`at ${L.fpl.toFixed(1)}L/lap`;document.getElementById('f-sl').textContent=L.stintLaps;document.getElementById('f-tl').textContent=L.totalLaps;if(L.stints.length>0){const cs=L.stints[L.stintNum-1];if(cs){const ll=Math.max(0,cs.laps-L.stintLaps),ee=Math.max(0,rem-ll*L.fpl);document.getElementById('f-ee').textContent=ee.toFixed(1)+'L';document.getElementById('f-eeSub').textContent=`${ll} laps to go`;}}const bar=document.getElementById('fBar'),pctEl=document.getElementById('fPct');bar.style.width=pct.toFixed(0)+'%';bar.style.background=pct>40?'var(--m-blue-dark)':pct>20?'var(--amber)':'var(--m-red)';pctEl.textContent=Math.round(pct)+'%';const msg=document.getElementById('fMsg');if(pct>50){msg.className='al al-gr';msg.textContent='Tank healthy — no action needed.';}else if(pct>25){msg.className='al al-am';msg.textContent='Fuel dropping — monitor closely and consider earlier pit window.';}else{msg.className='al al-rd';msg.textContent='LOW FUEL — pit this lap or next.';}const rv=document.getElementById('f-rem');rv.className=pct>40?'mv bl':pct>20?'mv am':'mv rd';}
+window.lapDone=()=>{L.stintLaps++;L.totalLaps++;L.fuelNow=Math.max(0,L.fuelNow-L.fpl);updateFuel();push();};
+window.pitRefuel=()=>{L.stintLaps=0;L.fuelNow=L.tank;updateFuel();push();};
+window.setFuelManual=()=>{const v=parseFloat(document.getElementById('manFuel').value);if(!isNaN(v)&&v>=0){L.fuelNow=v;updateFuel();push();}};
+window.setCurrentLap=()=>{const v=parseInt(document.getElementById('curLap').value);if(!isNaN(v)&&v>=0){L.totalLaps=v;updateFuel();push();}};
+function renderPitWindows(){const el=document.getElementById('pitWindows');if(!el)return;if(!L.stints.length){el.innerHTML='<div style="font-family:var(--mono);font-size:13px;color:var(--text3)">Set up the planner first.</div>';return;}el.innerHTML=L.stints.filter(s=>!s.isLast).map((s,i)=>{const nx=L.stints[i+1],ol=s.laps-2,cl=s.laps+2,cur=L.stintLaps,inW=cur>=ol&&cur<=cl,past=cur>cl;return `<div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border);flex-wrap:wrap"><span style="font-family:var(--display);font-size:18px;font-weight:800;color:var(--m-blue-dark);min-width:65px">STOP ${i+1}</span><span style="font-family:var(--mono);font-size:14px;color:var(--text)">Stint lap <b>${ol}–${cl}</b></span><span style="font-family:var(--mono);font-size:13px;color:var(--text3)">~${fmtMin(s.startSec+s.stintSec)}</span><span style="font-family:var(--mono);font-size:13px;color:var(--text3)">In: <b style="color:${DC[nx.di]}">${nx.driver}</b></span><span style="font-family:var(--mono);font-size:13px;color:var(--text3)">+${(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1)}L → ${nx.fuelLoad}L</span>${inW?'<span class="badge b-gr" style="font-size:12px;padding:5px 10px">IN WINDOW</span>':''}${past&&!inW?'<span class="badge b-mu">DONE</span>':''}</div>`;}).join('');}
+window.rotateDriver=()=>{L.curDrv=(L.curDrv+1)%L.drivers.length;L.stintLaps=0;L.stintNum++;L.fuelNow=L.tank;updateFuel();renderDrvPanel();push();};
+function renderDrvPanel(){renderCurDrv();renderDrvTime();}
+function renderCurDrv(){const el=document.getElementById('curDrvDisp');if(!el)return;const i=L.curDrv,d=L.drivers[i];el.innerHTML=`<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap"><div class="av" style="background:${DC[i]};width:56px;height:56px;font-size:18px">${ini(d)}</div><div><div style="font-family:var(--display);font-size:28px;font-weight:800;color:${DC[i]}">${d}</div><div style="font-family:var(--mono);font-size:13px;color:var(--text3);margin-top:4px">Stint ${L.stintNum} · ${fmtM(L.stintLaps*L.lapSec)} driven this stint</div></div><div style="margin-left:auto;text-align:right"><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">SWAP TIMER</div><div style="font-family:var(--display);font-size:40px;font-weight:800;color:var(--m-red)">30s</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3)">from stop in pit stall</div></div></div>`;}
+function renderDrvTime(){const el=document.getElementById('drvTimeRows');if(!el)return;const P=computePlan(),fs=P.fs;el.innerHTML=L.drivers.map((d,i)=>{const t=L.drvTime[i],le=Math.floor(t/L.lapSec),pct=Math.min(100,(le/Math.max(fs,1))*100),ok=le>=fs;return `<div class="drow"><div class="av" style="background:${DC[i]}">${ini(d)}</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px"><span style="font-family:var(--display);font-size:17px;font-weight:800;color:${i===L.curDrv?DC[i]:'var(--text)'}">${d}${i===L.curDrv?' <span class="badge b-bl" style="font-size:10px">DRIVING</span>':''}</span><span style="font-family:var(--mono);font-size:15px;color:var(--text)">${fmtH(t)}</span></div><div class="pb-wrap"><div class="pb" style="width:${pct.toFixed(0)}%;background:${DC[i]}"></div></div><div style="display:flex;justify-content:space-between;margin-top:7px"><span style="font-family:var(--mono);font-size:12px;color:var(--text3)">~${le} laps driven · need ${fs} for fair share</span><span class="badge ${ok?'b-gr':'b-am'}" style="font-size:10px">${ok?'FAIR SHARE MET':'NEEDS MORE'}</span></div></div></div>`;}).join('');}
+function incTotal(){return['spin','barrier','lapped','contact'].reduce((a,t)=>a+L.drivers.reduce((_,__,i)=>_+L.inc[t][i],0),0);}
+window.addInc=(t,di)=>{L.inc[t][di]++;renderIncPanel();push();};
+window.rmInc=(t,di)=>{if(L.inc[t][di]>0){L.inc[t][di]--;renderIncPanel();push();}};
+window.toggleFR=()=>{L.frUsed=!L.frUsed;renderIncPanel();push();};
+function renderIncPanel(){const tot=incTotal(),col=tot>=50?'var(--m-red)':tot>=35?'var(--amber)':'var(--green)';const tt=document.getElementById('teamTotalDisp');if(tt)tt.innerHTML=`<div style="font-family:var(--display);font-size:72px;font-weight:800;line-height:1;color:${col}">${tot}<span style="font-size:20px;color:var(--text3);font-weight:400"> incidents</span></div>`;const wEl=document.getElementById('incWarn');if(wEl){if(tot>=50){const nx=50+Math.ceil((tot-50)/20)*20;wEl.innerHTML=`<div class="al al-rd">STOP & GO active (${tot}x). Next penalty at ${nx}x.</div>`;}else if(tot>=35){wEl.innerHTML=`<div class="al al-am">${50-tot}x until Stop & Go penalty (at 50x)</div>`;}else{wEl.innerHTML=`<div class="al al-gr">${50-tot}x until first penalty threshold (50x)</div>`;}}const fd=document.getElementById('frDot'),fl=document.getElementById('frLbl');if(fd){fd.className=`fr ${L.frUsed?'fr-used':'fr-ok'}`;fd.textContent=L.frUsed?'USED':'OK';}if(fl)fl.textContent=L.frUsed?'Used — none left':'Available';const types=['spin','barrier','lapped','contact'],labels=['Spin / off','Hit barrier','Got lapped','Contact'];const iEl=document.getElementById('incRows');if(iEl)iEl.innerHTML=L.drivers.map((d,di)=>`<div class="irow"><div class="av" style="background:${DC[di]};width:36px;height:36px;font-size:13px">${ini(d)}</div><div style="font-family:var(--display);font-size:17px;font-weight:800;min-width:105px;color:var(--text)">${d}</div>${types.map((t,ti)=>`<div class="ig"><div class="ilbl">${labels[ti]}</div><button class="ibtn" onclick="addInc('${t}',${di})">+</button><span class="inum">${L.inc[t][di]}</span><button class="ibtn" onclick="rmInc('${t}',${di})">−</button></div>`).join('')}</div>`).join('');const scores=L.drivers.map((_,di)=>types.reduce((a,t)=>a+L.inc[t][di]*3,0)),mx=Math.max(...scores,1);const bEl=document.getElementById('banterRows');if(bEl)bEl.innerHTML=L.drivers.map((d,i)=>`<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><div class="av" style="background:${DC[i]};width:32px;height:32px;font-size:12px">${ini(d)}</div><div style="font-family:var(--display);font-size:17px;font-weight:700;min-width:105px;color:var(--text)">${d}</div><div class="pb-wrap"><div class="pb" style="width:${((scores[i]/mx)*100).toFixed(0)}%;background:var(--m-red)"></div></div><div style="font-family:var(--display);font-size:26px;font-weight:800;min-width:34px;text-align:right;color:var(--text)">${scores[i]}</div></div>`).join('');const allZ=scores.every(s=>s===0),winner=scores.indexOf(Math.max(...scores));const bld=document.getElementById('banterLdr');if(bld)bld.textContent=allZ?'No incidents yet — suspiciously clean for the Nordschleife.':`Current liability: ${L.drivers[winner]} (${scores[winner]} banter pts)`;}
+const CUES=[{cat:'PIT',txt:'Box this lap'},{cat:'PACE',txt:'Push now'},{cat:'FUEL',txt:'Fuel save — 2 laps'},{cat:'TYRES',txt:'Manage tyres'},{cat:'RACE',txt:'Position gained'},{cat:'TRAFFIC',txt:'Blue flag — move right'},{cat:'FLAG',txt:'FCY — slow down'},{cat:'FLAG',txt:'Safety car — check pit?'},{cat:'WEATHER',txt:'Rain — fit wets next stop'},{cat:'WARN',txt:'Careful — 45x incidents'},{cat:'WARN',txt:'50x — STOP & GO incoming'},{cat:'MORALE',txt:'Good lap, keep it up'},{cat:'SECTOR',txt:'Careful sector 3'},{cat:'PIT',txt:'Driver change this lap'},{cat:'BANTER',txt:'You absolute muppet'},{cat:'TRAFFIC',txt:'Check mirrors — blue flag'}];
+function renderCues(){document.getElementById('cueGrid').innerHTML=CUES.map((c,i)=>`<div class="cc" id="cc-${i}" onclick="flashCue(${i})"><div class="cc-cat">${c.cat}</div><div class="cc-txt">${c.txt}</div></div>`).join('');}
+window.flashCue=i=>{const el=document.getElementById('cc-'+i);if(!el)return;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1600);};
+function renderPitBoard(){if(!L.stints.length)return;const P=computePlan(),stints=L.stints;document.getElementById('pbStintBody').innerHTML=stints.map(s=>`<tr><td class="mo">${s.num}</td><td>${s.driver}</td><td class="mo">${fmtMin(s.startSec)}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td class="mo">${s.laps}</td><td class="mo">${s.fuelLoad}L</td></tr>`).join('');document.getElementById('pbPitBody').innerHTML=stints.filter(s=>!s.isLast).map((s,i)=>{const nx=stints[i+1],la=stints.slice(0,i+1).reduce((a,x)=>a+x.laps,0);return `<tr><td class="mo">${i+1}</td><td class="mo">${la}</td><td class="mo">${fmtMin(s.startSec+s.stintSec)}</td><td>${nx.driver}</td><td class="mo">${(nx.fuelLoad-parseFloat(s.fuelEnd)).toFixed(1)}L</td></tr>`;}).join('');document.getElementById('pbFairShare').innerHTML=L.drivers.map(d=>`<div>${d}: min <b style="color:var(--m-blue-dark)">${P.fs} laps</b></div>`).join('');document.getElementById('pbFuelTargets').innerHTML=stints.map(s=>`<div>Stint ${s.num} — ${s.driver}: <b style="color:var(--m-blue-dark)">${s.fuelLoad}L</b></div>`).join('');document.getElementById('pbCues').innerHTML=CUES.slice(0,9).map(c=>`<div class="cc" style="cursor:default"><div class="cc-cat">${c.cat}</div><div class="cc-txt">${c.txt}</div></div>`).join('');}
+function buildDriverGrids(){['dSetupGrid','dNameSetup'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=L.drivers.map((d,i)=>`<div><label class="flbl">Driver ${i+1}</label><input type="text" value="${d}" oninput="L.drivers[${i}]=this.value;renderAll()"></div>`).join('');});}
+function syncSetupSliders(){const sv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;},st=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};sv('s-dur',L.dur);st('s-durV',L.dur+' min');sv('s-lap',L.lapSec);st('s-lapV',fmtM(L.lapSec));sv('s-fpl',L.fpl);st('s-fplV',L.fpl.toFixed(1)+'L');sv('s-tank',L.tank);st('s-tankV',L.tank+'L');sv('s-margin',L.margin);st('s-marginV',L.margin.toFixed(1)+'L');sv('s-pitloss',L.pitLoss);st('s-pitlossV',L.pitLoss+'s');}
+window.syncSetup=()=>{L.dur=parseInt(document.getElementById('s-dur').value);L.lapSec=parseInt(document.getElementById('s-lap').value);L.fpl=parseFloat(document.getElementById('s-fpl').value);L.tank=parseInt(document.getElementById('s-tank').value);L.margin=parseFloat(document.getElementById('s-margin').value);L.pitLoss=parseInt(document.getElementById('s-pitloss').value);syncSetupSliders();planUpdate();};
+// ── THEME TOGGLE ──
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeBtn').textContent = dark ? '☀' : '☾';
+  document.getElementById('themeBtn').title = dark ? 'Switch to light' : 'Switch to dark';
+  try { localStorage.setItem('nec-theme', dark ? 'dark' : 'light'); } catch(e){}
+}
+window.toggleTheme = () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(!isDark);
+};
+// Restore saved preference
+try {
+  const saved = localStorage.getItem('nec-theme');
+  if (saved === 'dark') applyTheme(true);
+} catch(e){}
+
+function renderLive(){document.getElementById('clockEl').textContent=fmtH(L.clockSec);updateFuel();renderDrvPanel();renderIncPanel();renderPitWindows();}
+function renderAll(){buildDriverGrids();planUpdate();renderLive();renderCues();}
+window.renderAll=renderAll;window.L=L;
+renderAll();
+</script>
+</body>
+</html>
