@@ -41,11 +41,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:16
 .clock{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:.08em;color:#fff;min-width:110px}
 .clock.go{color:#FFD700}
 .sync-wrap{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.sdot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3)}
-.sdot.live{background:#4CD964;box-shadow:0 0 6px #4CD964}
-.sdot.sync{background:#FFD700;animation:blink 1s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-.slbl{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55)}
+
 .topbar-right{display:flex;gap:8px;margin-left:auto;flex-shrink:0}
 
 .tabbar{background:var(--bg);border-bottom:3px solid var(--bg3);display:flex;overflow-x:auto}
@@ -203,8 +199,7 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
     <div class="clock" id="clockEl">0:00:00</div>
     <button class="btn btn-green btn-sm" id="startBtn" onclick="toggleClock()">START</button>
   </div>
-  <div class="vsep"></div>
-  <div class="sync-wrap"><div class="sdot" id="sdot"></div><div class="slbl" id="slbl">Offline</div></div>
+
   <div class="topbar-right no-print">
     <button class="btn btn-ghost btn-sm" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">☀</button>
     <button class="btn btn-ghost btn-sm" onclick="resetAll()">RESET</button>
@@ -221,6 +216,7 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
   <div class="tab" onclick="switchTab('radio')">Radio</div>
   <div class="tab" onclick="switchTab('pitboard')">Pit Board</div>
   <div class="tab" onclick="switchTab('debrief')">Debrief</div>
+  <div class="tab" onclick="switchTab('export')">Export</div>
   <div class="tab" onclick="switchTab('setup')">Setup</div>
 </div>
 
@@ -577,6 +573,41 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
   </div>
 </div>
 
+<!-- ══ EXPORT ══ -->
+<div id="panel-export" class="panel">
+  <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
+  <div class="sh">
+    <div class="st">Export race plan</div>
+    <button class="btn btn-blue" onclick="refreshExport()">Refresh</button>
+  </div>
+
+  <!-- SHAREABLE URL -->
+  <div class="card accent" style="margin-bottom:14px">
+    <div class="chd">Shareable URL</div>
+    <p style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-bottom:12px">Encodes the full plan into a link. Recipients open it in any browser — no app needed.</p>
+    <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:10px">
+      <input type="text" id="exportUrl" readonly style="flex:1;font-size:12px;background:var(--bg2);cursor:pointer" onclick="this.select()" placeholder="Click Refresh to generate…">
+      <button class="btn btn-blue" onclick="copyUrl()">Copy link</button>
+    </div>
+    <div id="exportUrlMsg" style="font-family:var(--mono);font-size:11px;color:var(--green);min-height:16px"></div>
+  </div>
+
+  <!-- COPY AS TEXT -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="chd">Copy as text — WhatsApp / Discord</div>
+    <div id="exportText" class="debrief-copy" style="max-height:320px;overflow-y:auto;font-size:12px;margin-bottom:10px"></div>
+    <button class="btn btn-blue" onclick="copyText()">Copy to clipboard</button>
+    <span id="exportTextMsg" style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:12px"></span>
+  </div>
+
+  <!-- PDF -->
+  <div class="card">
+    <div class="chd">Download as PDF</div>
+    <p style="font-family:var(--mono);font-size:12px;color:var(--text3);margin-bottom:14px">Opens a print-optimised view of the full race plan. Use your browser's Save as PDF option.</p>
+    <button class="btn btn-blue" onclick="exportPDF()">Open print / save PDF</button>
+  </div>
+</div>
+
 <!-- ══ SETUP ══ -->
 <div id="panel-setup" class="panel">
   <div class="m-stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div></div>
@@ -599,11 +630,8 @@ td.mo{font-family:var(--mono);font-size:13px;color:var(--text2)}
 
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-const FB=initializeApp({apiKey:"AIzaSyAJriIMMQ4537Gq88cqDFa4ttBNcaUKjr8",authDomain:"laps-746d8.firebaseapp.com",projectId:"laps-746d8",storageBucket:"laps-746d8.firebasestorage.app",messagingSenderId:"1020079730620",appId:"1:1020079730620:web:a187ebd768ca739e51c5b9",databaseURL:"https://laps-746d8-default-rtdb.firebaseio.com"});
-const db=getDatabase(FB),rr=k=>ref(db,`race1/${k}`);
+<script>
+// No sync — single device, localStorage persistence only
 
 function dc(i){const dark=document.documentElement.getAttribute('data-theme')==='dark';return(dark?['#6B8FD4','#88AAEE','#FF4D4D']:['#1C2D6E','#3659A2','#E2001A'])[i];}
 function dcb(i){const dark=document.documentElement.getAttribute('data-theme')==='dark';return(dark?['rgba(107,143,212,.2)','rgba(136,170,238,.2)','rgba(255,77,77,.2)']:['rgba(28,45,110,.1)','rgba(54,89,162,.1)','rgba(226,0,26,.1)'])[i];}
@@ -642,15 +670,25 @@ let L={
   fastLaps:[], tyreSets:[],
   stintNotes:{}, positionLog:[], trackCondLog:[], eventLog:[],
 };
+// Fields persisted to localStorage
 const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets','manualLaps','manualDrivers','stintNotes','positionLog','trackCondLog','eventLog'];
 
-function setSS(s){const d=document.getElementById('sdot'),l=document.getElementById('slbl');if(s==='live'){d.className='sdot live';l.textContent='Live';}else if(s==='sync'){d.className='sdot sync';l.textContent='Syncing…';}else{d.className='sdot';l.textContent='Offline';}}
-function push(){setSS('sync');const p={};SYNC.forEach(k=>p[k]=L[k]);update(rr('state'),p).then(()=>setSS('live')).catch(()=>setSS('offline'));}
-try{onValue(rr('state'),snap=>{setSS('live');const d=snap.val();if(!d)return;
-  SYNC.forEach(k=>{if(d[k]!==undefined)L[k]=d[k];});
-  // Recompute stints from current plan config so pit windows work on all devices
-  if(L.stints&&L.stints.length===0){const P=computePlan();L.stints=P.stints;}
-  renderLive();},()=>setSS('offline'));}catch(e){setSS('offline');}
+// ── Persistence: localStorage ──
+function push(){
+  try{
+    const p={};SYNC.forEach(k=>p[k]=L[k]);
+    localStorage.setItem('nec-race-state',JSON.stringify(p));
+  }catch(e){console.warn('localStorage save failed',e);}
+}
+function loadFromStorage(){
+  try{
+    const raw=localStorage.getItem('nec-race-state');
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    SYNC.forEach(k=>{if(d[k]!==undefined)L[k]=d[k];});
+    if(L.stints&&L.stints.length===0){const P=computePlan();L.stints=P.stints;}
+  }catch(e){console.warn('localStorage load failed',e);}
+}
 
 const fmtH=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60);return `${h}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;};
 const fmtM=s=>{const m=Math.floor(s/60),sc=Math.floor(s%60);return `${m}:${sc.toString().padStart(2,'0')}`;};
@@ -668,13 +706,7 @@ function ts(){
   return {wall:lisbon, race:L.clockSec, raceFmt:fmtH(L.clockSec), lap:L.totalLaps};
 }
 
-window.switchTab=t=>{
-  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.onclick?.toString().includes(`'${t}'`)));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${t}`));
-  if(t==='pitboard')renderPitBoard();
-  if(t==='debrief')renderDebrief();
-  if(t==='pitstop')renderPitStopTab();
-};
+
 
 window.toggleClock=()=>{
   if(!L.running){
@@ -715,6 +747,7 @@ window.resetAll=()=>{
   document.getElementById('startBtn').textContent='START';
   document.getElementById('startBtn').className='btn btn-green btn-sm';
   push();renderAll();
+  localStorage.removeItem('nec-race-state');
 };
 
 // ── PLAN ──
@@ -1502,6 +1535,149 @@ window.saveStintNote=(idx,val)=>{
 
 
 
+// ── EXPORT ──
+function buildPlanText(){
+  if(!L.stints||!L.stints.length) return 'Run the planner first to generate export.';
+  const P=computePlan();
+  const line=(label,val)=>`${label.padEnd(20)} ${val}`;
+  const sep='─'.repeat(48);
+  let t='';
+  t+='NEC 4-HOUR RACE PLAN\n';
+  t+='BMW M2 Competition · Nürburgring Combined VLN\n';
+  t+=sep+'\n\n';
+  t+='RACE SETTINGS\n';
+  t+=line('Duration:',L.dur+' min')+' \n';
+  t+=line('Lap time:',fmtM(L.lapSec))+' \n';
+  t+=line('Tank capacity:',L.tank+'L')+' \n';
+  t+=line('Fuel per lap:',L.fpl.toFixed(1)+'L')+' \n';
+  t+=line('Safety margin:',L.margin.toFixed(1)+'L')+' \n';
+  t+=line('Pit base time:',L.pitBase+'s')+' \n';
+  t+=line('Refuel rate:',(L.fuelRate||0.34).toFixed(2)+'s/L')+' \n';
+  t+=line('Tyre change:',((L.tyreChange||0)===0?'None':L.tyreChange+'s'))+' \n';
+  t+='\n'+sep+'\n\n';
+  t+='FUEL STRATEGY\n';
+  t+=line('Pit stops required:',P.stops)+' \n';
+  t+=line('Max laps per tank:',P.maxLapsPerTank)+' \n';
+  t+=line('Est. total laps:',P.totalLapsEst)+' \n';
+  t+=line('Auto laps per stint:',P.avgLaps)+' \n';
+  t+=line('Fair share minimum:',P.fs+' laps per driver')+' \n';
+  t+='\n'+sep+'\n\n';
+  t+='STINTS\n';
+  L.stints.forEach((s,idx)=>{
+    t+=`Stint ${s.num} — ${s.driver}\n`;
+    t+=line('  Start:',fmtMin(s.startSec))+' \n';
+    t+=line('  End:',fmtMin(s.startSec+s.stintSec))+' \n';
+    t+=line('  Duration:',fmtMin(s.stintSec))+' \n';
+    t+=line('  Laps:',s.laps+(L.manualLaps&&L.manualLaps[idx]?' (manual)':' (auto)'))+' \n';
+    t+=line('  Fuel load:',s.fuelLoad+'L')+' \n';
+    t+=line('  Fuel at end:',s.fuelEnd+'L')+' \n';
+    const note=(L.stintNotes||{})[idx];
+    if(note) t+=line('  Notes:',note)+' \n';
+    t+='\n';
+  });
+  t+=sep+'\n\n';
+  t+='PIT STOPS\n';
+  if(P.pitStops&&P.pitStops.length){
+    P.pitStops.forEach((ps,i)=>{
+      const nx=L.stints[i+1];
+      t+=`Stop ${ps.stopNum}\n`;
+      t+=line('  At lap:',ps.lap)+' \n';
+      t+=line('  At ~:',fmtMin(L.stints[i].startSec+L.stints[i].stintSec))+' \n';
+      t+=line('  Out:',L.stints[i].driver)+' \n';
+      t+=line('  In:',nx?nx.driver:'—')+' \n';
+      t+=line('  Add fuel:',ps.fuelAdd+'L')+' \n';
+      t+=line('  Refuel time:',ps.refuelSec+'s')+' \n';
+      t+=line('  Total stop:',ps.stopTime+'s')+' \n';
+      t+='\n';
+    });
+  }
+  t+=sep+'\n\n';
+  t+='DRIVER FAIR SHARE\n';
+  P.dLaps.forEach((laps,i)=>{
+    t+=line('  '+L.drivers[i]+':',laps+' planned / '+P.fs+' minimum → '+(laps>=P.fs?'OK':'SHORT by '+(P.fs-laps)))+' \n';
+  });
+  t+='\n'+sep+'\n';
+  t+='RULES REMINDER\n';
+  t+=line('  Swap timer:','30 seconds minimum')+' \n';
+  t+=line('  Fast repair:','1 only')+' \n';
+  t+=line('  Penalties:','50x incidents = Stop & Go, then every 20x')+' \n';
+  return t;
+}
+
+function buildShareUrl(){
+  // Encode only the plan config (not live state) into URL hash
+  const plan={
+    dur:L.dur, lapSec:L.lapSec, pitBase:L.pitBase,
+    fuelRate:L.fuelRate, tyreChange:L.tyreChange,
+    tank:L.tank, fpl:L.fpl, margin:L.margin,
+    drivers:L.drivers,
+    manualLaps:L.manualLaps||{}, manualDrivers:L.manualDrivers||{},
+    stintNotes:L.stintNotes||{}
+  };
+  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(plan))));
+  return window.location.href.split('#')[0]+'#plan='+encoded;
+}
+
+function loadFromUrl(){
+  try{
+    const hash=window.location.hash;
+    if(!hash||!hash.includes('plan=')) return false;
+    const encoded=hash.split('plan=')[1];
+    const plan=JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    // Apply plan config
+    const fields=['dur','lapSec','pitBase','fuelRate','tyreChange','tank','fpl','margin','drivers','manualLaps','manualDrivers','stintNotes'];
+    fields.forEach(k=>{if(plan[k]!==undefined)L[k]=plan[k];});
+    return true;
+  }catch(e){console.warn('URL plan load failed',e);return false;}
+}
+
+window.refreshExport=()=>{
+  const url=buildShareUrl();
+  const urlEl=document.getElementById('exportUrl');
+  if(urlEl) urlEl.value=url;
+  const textEl=document.getElementById('exportText');
+  if(textEl) textEl.textContent=buildPlanText();
+};
+
+window.copyUrl=()=>{
+  const url=document.getElementById('exportUrl').value;
+  if(!url){window.refreshExport();}
+  navigator.clipboard.writeText(document.getElementById('exportUrl').value).then(()=>{
+    const el=document.getElementById('exportUrlMsg');
+    if(el){el.textContent='✓ Link copied!';setTimeout(()=>el.textContent='',2500);}
+  }).catch(()=>{
+    document.getElementById('exportUrl').select();
+    document.execCommand('copy');
+  });
+};
+
+window.copyText=()=>{
+  const text=document.getElementById('exportText').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const el=document.getElementById('exportTextMsg');
+    if(el){el.textContent='✓ Copied!';setTimeout(()=>el.textContent='',2500);}
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+  });
+};
+
+window.exportPDF=()=>{
+  // Switch to pit board and print
+  switchTab('pitboard');
+  setTimeout(()=>window.print(),300);
+};
+
+window.switchTab=t=>{
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.onclick?.toString().includes(`'${t}'`)));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${t}`));
+  if(t==='pitboard')renderPitBoard();
+  if(t==='debrief')renderDebrief();
+  if(t==='pitstop')renderPitStopTab();
+  if(t==='export'){refreshExport();}
+};
+
 function renderLive(){
   document.getElementById('clockEl').textContent=fmtH(L.clockSec);
   renderPitStopTab();
@@ -1514,7 +1690,13 @@ function renderAll(){
   renderCues();
 }
 window.renderAll=renderAll;window.L=L;
+// Load from URL hash if shared link
+const loadedFromUrl=loadFromUrl();
+if(!loadedFromUrl) loadFromStorage();
 renderAll();
+// Auto-save every 30 seconds as backup
+// Auto-save every 30 seconds as backup
+setInterval(push, 30000);
 </script>
 </body>
 </html>
