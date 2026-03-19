@@ -622,29 +622,35 @@ function logEvent(type,data){
 }
 
 let L={
-  clockSec:0,running:false,_int:null,
-  dur:240,lapSec:510,pitBase:30,fuelRate:0.34,tyreChange:0,tank:70,fpl:3.2,margin:3.0,
+  // Clock
+  clockSec:0, running:false, _int:null,
+  // Race config
+  dur:240, lapSec:510, pitBase:30, fuelRate:0.34, tyreChange:0,
+  tank:70, fpl:3.2, margin:3.0,
+  // Drivers
   drivers:['Driver 1','Driver 2','Driver 3'],
-  stints:[],manualLaps:{},manualDrivers:{}, // keyed by stint index
-  curDrv:0,drvTime:[0,0,0],
-  stintLaps:0,totalLaps:0,stintNum:1,
+  curDrv:0, drvTime:[0,0,0],
+  // Stints
+  stints:[], manualLaps:{}, manualDrivers:{},
+  stintLaps:0, totalLaps:0, stintNum:1,
+  // Fuel
   fuelNow:70,
+  // Incidents
   inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},
   frUsed:false,
-  // Fastest laps per stint: [{stintNum, driver, lapTime, lap}]
-  fastLaps:[],
-  // Tyre sets: [{compound, condition, lapFitted, notes}]
-  tyreSets:[],
-  stintNotes:{},
-  positionLog:[],
-  trackCondLog:[],
-  eventLog:[],
+  // Logged data
+  fastLaps:[], tyreSets:[],
+  stintNotes:{}, positionLog:[], trackCondLog:[], eventLog:[],
 };
 const SYNC=['curDrv','drvTime','stintLaps','totalLaps','stintNum','fuelNow','inc','frUsed','clockSec','fastLaps','tyreSets','manualLaps','manualDrivers','stintNotes','positionLog','trackCondLog','eventLog'];
 
 function setSS(s){const d=document.getElementById('sdot'),l=document.getElementById('slbl');if(s==='live'){d.className='sdot live';l.textContent='Live';}else if(s==='sync'){d.className='sdot sync';l.textContent='Syncing…';}else{d.className='sdot';l.textContent='Offline';}}
 function push(){setSS('sync');const p={};SYNC.forEach(k=>p[k]=L[k]);update(rr('state'),p).then(()=>setSS('live')).catch(()=>setSS('offline'));}
-try{onValue(rr('state'),snap=>{setSS('live');const d=snap.val();if(!d)return;SYNC.forEach(k=>{if(d[k]!==undefined)L[k]=d[k];});renderLive();},()=>setSS('offline'));}catch(e){setSS('offline');}
+try{onValue(rr('state'),snap=>{setSS('live');const d=snap.val();if(!d)return;
+  SYNC.forEach(k=>{if(d[k]!==undefined)L[k]=d[k];});
+  // Recompute stints from current plan config so pit windows work on all devices
+  if(L.stints&&L.stints.length===0){const P=computePlan();L.stints=P.stints;}
+  renderLive();},()=>setSS('offline'));}catch(e){setSS('offline');}
 
 const fmtH=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60);return `${h}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;};
 const fmtM=s=>{const m=Math.floor(s/60),sc=Math.floor(s%60);return `${m}:${sc.toString().padStart(2,'0')}`;};
@@ -693,7 +699,17 @@ window.toggleClock=()=>{
 window.resetAll=()=>{
   if(!confirm('Reset all live race data?'))return;
   clearInterval(L._int);
-  Object.assign(L,{running:false,clockSec:0,drvTime:[0,0,0],curDrv:0,stintLaps:0,totalLaps:0,stintNum:1,fuelNow:L.tank,inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},frUsed:false,fastLaps:[],tyreSets:[],manualLaps:{},manualDrivers:{},stintNotes:{},positionLog:[],trackCondLog:[],eventLog:[]});
+  Object.assign(L,{
+    clockSec:0, running:false,
+    curDrv:0, drvTime:[0,0,0],
+    stintLaps:0, totalLaps:0, stintNum:1,
+    fuelNow:L.tank,
+    inc:{spin:[0,0,0],barrier:[0,0,0],lapped:[0,0,0],contact:[0,0,0]},
+    frUsed:false,
+    fastLaps:[], tyreSets:[],
+    manualLaps:{}, manualDrivers:{},
+    stintNotes:{}, positionLog:[], trackCondLog:[], eventLog:[],
+  });
   document.getElementById('clockEl').textContent='0:00:00';
   document.getElementById('clockEl').classList.remove('go');
   document.getElementById('startBtn').textContent='START';
@@ -745,14 +761,15 @@ window.stintLapChanged=(i,v)=>{const n=parseInt(v);if(!isNaN(n)&&n>0)L.manualLap
 window.stintDriverChanged=(i,v)=>{const n=parseInt(v);if(!isNaN(n))L.manualDrivers[i]=n;else delete L.manualDrivers[i];planUpdate();};
 
 function planUpdate(){
-  L.dur=parseInt(document.getElementById('p-dur').value);
-  L.lapSec=parseInt(document.getElementById('p-lap').value);
-  L.pitBase=parseInt(document.getElementById('p-pitbase').value);
-  L.fuelRate=parseFloat(document.getElementById('p-fuelrate').value);
-  L.tyreChange=parseInt(document.getElementById('p-tyrechange').value);
-  L.tank=parseInt(document.getElementById('p-tank').value);
-  L.fpl=parseFloat(document.getElementById('p-fpl').value);
-  L.margin=parseFloat(document.getElementById('p-margin').value);
+  const gv=(id,def,fn)=>{const e=document.getElementById(id);return e?(fn||parseInt)(e.value):def;};
+  L.dur    = gv('p-dur',240);
+  L.lapSec = gv('p-lap',510);
+  L.pitBase= gv('p-pitbase',30);
+  L.fuelRate=gv('p-fuelrate',0.34,parseFloat);
+  L.tyreChange=gv('p-tyrechange',0);
+  L.tank   = gv('p-tank',70);
+  L.fpl    = gv('p-fpl',3.2,parseFloat);
+  L.margin = gv('p-margin',3.0,parseFloat);
   document.getElementById('p-durV').textContent=L.dur+' min';
   document.getElementById('p-lapV').textContent=fmtM(L.lapSec);
   document.getElementById('p-pitbaseV').textContent=L.pitBase+'s';
@@ -900,7 +917,7 @@ function updateFuel(){
   f('f-lSub').textContent=`at ${L.fpl.toFixed(1)}L/lap`;
   f('f-sl').textContent=L.stintLaps;
   f('f-tl').textContent=L.totalLaps;
-  if(L.stints.length>0){const cs=L.stints[L.stintNum-1];if(cs){const ll=Math.max(0,cs.laps-L.stintLaps),ee=Math.max(0,rem-ll*L.fpl);f('f-ee').textContent=ee.toFixed(1)+'L';f('f-eeSub').textContent=`${ll} laps to go`;}}
+  if(L.stints&&L.stints.length>0){const cs=L.stints[Math.min(L.stintNum-1,L.stints.length-1)];if(cs){const ll=Math.max(0,cs.laps-L.stintLaps),ee=Math.max(0,rem-ll*L.fpl);f('f-ee').textContent=ee.toFixed(1)+'L';f('f-eeSub').textContent=`${ll} laps to go`;}}
   const bar=f('fBar');bar.style.width=pct.toFixed(0)+'%';bar.style.background=pct>40?'var(--m-bd)':pct>20?'var(--amber)':'var(--m-red)';
   f('fPct').textContent=Math.round(pct)+'%';
   const msg=f('fMsg');
@@ -921,7 +938,7 @@ function updateDelta(){
     let t=0;
     for(const s of L.stints){
       if(t+s.stintSec>=raceTimeSec){planned+=Math.floor((raceTimeSec-t)/L.lapSec);break;}
-      planned+=s.laps;t+=s.stintSec+(s.isLast?0:L.pitLoss);
+      planned+=s.laps;const pLossEst=Math.round((L.pitBase||30)+((L.fuelNow||L.tank||70)*0.5*(L.fuelRate||0.34))+(L.tyreChange||0));t+=s.stintSec+(s.isLast?0:pLossEst);
     }
   }
   const delta=actual-planned;
@@ -1365,7 +1382,8 @@ window.resetCountdown=()=>{
 
 function renderPitStopTab(){
   // Current + next driver
-  const i=L.curDrv,next=(L.curDrv+1)%L.drivers.length;
+  if(!L.drivers||!L.drivers.length) return;
+  const i=L.curDrv||0,next=((L.curDrv||0)+1)%L.drivers.length;
   const pdd=document.getElementById('pitDrvDisp');
   if(pdd) pdd.innerHTML=`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <div style="text-align:center"><div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px">OUT</div><div class="av" style="background:${dc(i)};width:48px;height:48px;font-size:17px;margin:0 auto">${ini(L.drivers[i])}</div><div style="font-family:var(--display);font-size:16px;font-weight:800;margin-top:6px;color:${dc(i)}">${L.drivers[i]}</div></div>
@@ -1375,7 +1393,7 @@ function renderPitStopTab(){
   // Fuel
   const rem=Math.max(0,L.fuelNow);
   // Planned fuel add for next stint from plan
-  const nextStintIdx=L.stintNum; // 0-based index of next stint
+  const nextStintIdx=L.stintNum; // stintNum is 1-based; current=stints[stintNum-1], next=stints[stintNum]
   const plannedAdd=L.stints&&L.stints[nextStintIdx]?Math.max(0,L.stints[nextStintIdx].fuelLoad-rem):Math.max(0,L.tank-rem);
   const refuelSec=Math.round(plannedAdd*(L.fuelRate||0.34));
   const total=Math.round((L.pitBase||30)+refuelSec+(L.tyreChange||0));
@@ -1489,7 +1507,12 @@ function renderLive(){
   renderPitStopTab();
   updateFuel();renderDrvPanel();renderIncPanel();renderPitWindows();renderTyrePanel();renderFastLapTable();
 }
-function renderAll(){buildDriverGrids();planUpdate();renderLive();renderCues();}
+function renderAll(){
+  buildDriverGrids();
+  planUpdate(); // this sets L.stints, L.fuelNow
+  renderLive();
+  renderCues();
+}
 window.renderAll=renderAll;window.L=L;
 renderAll();
 </script>
